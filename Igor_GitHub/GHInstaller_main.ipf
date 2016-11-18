@@ -63,15 +63,15 @@ Function GHW_CreateMainpanel()
 	PopupMenu SelectReleaseToInstall,help={"Select release to install"}
 	PopupMenu SelectReleaseToInstall,mode=1,value= #"root:Packages:GHInstaller:PopListOfReleaseNames"
 	SetVariable ReleaseNotes variable = root:Packages:GHInstaller:ReleaseNotes
-	SetVariable ReleaseNotes pos={10,98},size={600,18},disable=2
+	SetVariable ReleaseNotes pos={10,98},size={570,18},disable=2
 	ListBox InstallationSelection,pos={10.00,120.00},size={362.00,177.00}
 	ListBox InstallationSelection,listWave=root:Packages:GHInstaller:VersionsAndInstall
 	ListBox InstallationSelection,selWave=root:Packages:GHInstaller:SelVersionsAndInstall
 	ListBox InstallationSelection,mode= 8,userColumnResize= 1
 
 	Button GetHelp,pos={480,45},size={110,20},proc=GHW_ButtonProc,title="Get Help"
-	Button UninstallPackages,pos={390,126},size={200,20},proc=GHW_ButtonProc,title="Uninstall Selected", fColor=(16386,65535,16385)
-	Button InstallPackages,pos={390,155},size={200,20},proc=GHW_ButtonProc,title="Install/Update Selected", fColor=(16386,65535,16385)
+	Button InstallPackages,pos={390,126},size={200,20},proc=GHW_ButtonProc,title="Install/Update Selected", fColor=(16386,65535,16385)
+	Button UninstallPackages,pos={390,155},size={200,20},proc=GHW_ButtonProc,title="Uninstall Selected", fColor=(16386,65535,16385)
 
 	Button OpenWebSIte,pos={390,200},size={200,18},proc=GHW_ButtonProc,title="Ilavsky Web site"
 	Button OpenGitHub,pos={390,230},size={200,18},proc=GHW_ButtonProc,title="Github depository"
@@ -102,11 +102,13 @@ Function GHW_CheckProc(cba) : CheckBoxControl
 			if(stringmatch(cba.ctrlName,"UseLocalFolder"))
 				SVAR LocalFolderPath	=	root:Packages:GHInstaller:LocalFolderPath
 				NVAR UseLocalFolder	=	root:Packages:GHInstaller:UseLocalFolder
+				NVAR DisplayBetaReleases = root:Packages:GHInstaller:DisplayBetaReleases
 				if(checked)
 					PathInfo/S userDesktop 
 					NewPath /M="Select Location of Folder with data downloaded from GitHub"  /O/Q LocalInstallationFolder  
 					PathInfo LocalInstallationFolder 
 					LocalFolderPath = S_path
+					DisplayBetaReleases = 0
 				else
 					KillPath/Z LocalInstallationFolder
 				endif

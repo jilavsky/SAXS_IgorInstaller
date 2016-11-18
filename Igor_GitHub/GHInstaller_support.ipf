@@ -633,7 +633,7 @@ static Function GHW_ListAllInstallableFiles()
 		GHW_ListProcFiles(S_Path,0)
 	endif
 	path = GHW_GetIgorUserFilesPath()				//HR This is needed because of a bug in SpecialDirPath prior to 6.20B03.
-	path += "User Procedures:"						//HR Removed trailing colon though that is not necessary //JIL and HR was wrong, it fails afterwards
+	path += "User Procedures:"					
 	GetFileFolderInfo/Q/Z (path)	
 	if(V_Flag==0)
 		GHW_ListProcFiles(path,0)	//HR Reuse path variable
@@ -648,6 +648,14 @@ static Function GHW_ListAllInstallableFiles()
 	GetFileFolderInfo/Q/Z (GHW_GetIgorUserFilesPath()+"Igor Extensions (64-bit):")
 	if(V_Flag==0)
 		GHW_ListProcFiles(GHW_GetIgorUserFilesPath()+"Igor Extensions (64-bit):",0)
+	endif
+	GetFileFolderInfo/Q/Z/P=Igor "Igor Extensions"	
+	if(V_Flag==0)
+		GHW_ListProcFiles(S_Path, 0)
+	endif
+	GetFileFolderInfo/Q/Z (GHW_GetIgorUserFilesPath()+"Igor Extensions:")
+	if(V_Flag==0)
+		GHW_ListProcFiles(GHW_GetIgorUserFilesPath()+"Igor Extensions:",0)
 	endif
 	KillPath/Z tempPath
 end
@@ -759,9 +767,7 @@ static  Function GHW_ListProcFiles(PathStr, resetWaves)
 
 	//list al items in this path
 	string ItemsInTheFolder= IndexedFile(tempPath,-1,"????")+IndexedDir(tempPath, -1, 0 )
-	
 	//HR If there is a shortcut in "Igor Procedures", ItemsInTheFolder will include something like "HDF5 Browser.ipf.lnk". Windows shortcuts are .lnk files.	
-	
 	//remove all . files. 
 	ItemsInTheFolder = GrepList(ItemsInTheFolder, "^\." ,1)
 	//Now we removed all junk files on Macs (starting with .)
@@ -819,9 +825,7 @@ static  Function GHW_ListProcFiles(PathStr, resetWaves)
 					else                    //no version for non-ipf files
 						FileVersions[numpnts(FileNames)-1]=NaN
 					endif
-				//************
-
-
+					//************
 				endif
 			endif
 			//and now when we got back, fix the path definition to previous or all will crash...
@@ -982,6 +986,7 @@ Function GHW_PrepareListboxGUIData()
 	SVAR PopListOfReleaseNames = root:Packages:GHInstaller:PopListOfReleaseNames
 	NVAR DisplayBetaReleases = root:Packages:GHInstaller:DisplayBetaReleases
 	SVAR ReleaseNotes = root:Packages:GHInstaller:ReleaseNotes
+	SVAR LocalFolderPath = root:Packages:GHInstaller:LocalFolderPath
 	//need to prepare new stuff...
 	variable NumOfReleases=DimSize(ListOfReleases, 0 )
 	variable NumOfPackages=DimSize(ListOfPackages, 0 )
@@ -999,7 +1004,7 @@ Function GHW_PrepareListboxGUIData()
 	//column 2 are remote versions in the release
 	variable i
 	variable TmpVer
-	string TempStr, tempKey
+	string TempStr, tempKey, tempVerName
 	string LookHere
 	variable WhichReleaseUserWants=NaN
 	For(i=0;i<dimsize(ListOfReleases,0);i+=1)
@@ -1011,15 +1016,21 @@ Function GHW_PrepareListboxGUIData()
 	ReleaseNotes = ""
 	if(numtype(WhichReleaseUserWants)!=0)
 		//something went wrong here, abort and set values to Nan's 
+		if(StringMatch(SelectedReleaseName, "master" ))
+			ReleaseNotes = "Master = development versions in GH at this moment!"
+			tempVerName = "unknown"
+		else
+			ReleaseNotes = "LocalFolder = versions in : "+LocalFolderPath
+			tempVerName = "unknown"
+		endif
 		LookHere = ListOfReleases[0][2]
 		For(i=0;i<numpnts(ListOfPackages);i+=1)
 			VersionsAndInstall[i][0]=ListOfPackages[i]
 			TempStr = StringByKey(ListOfPackages[i]+"_VersionCheckFile", LookHere,"=",";")
 			TmpVer = GHW_FindFileVersion(TempStr)
 			VersionsAndInstall[i][1]=num2str(TmpVer)
-			VersionsAndInstall[i][2]="unknown"		//would be nice to use this: GHW_FindNonStandardPckgVersionNum but it is ugly process to figure it out. May be later. 
+			VersionsAndInstall[i][2]=tempVerName		//would be nice to use this: GHW_FindNonStandardPckgVersionNum but it is ugly process to figure it out. May be later. 
 		endfor
-		ReleaseNotes = ""
 	else
 		LookHere = ListOfReleases[WhichReleaseUserWants][2]
 		For(i=0;i<numpnts(ListOfPackages);i+=1)
@@ -1116,19 +1127,24 @@ Function GHW_Uninstall()
 						DeleteFile /P=IgorUserPath /Z tempStr+".deleteMe"
 						if(V_flag!=0)
 							GHW_MakeRecordOfProgress("Could not delete "+tempStr+".deleteMe")
+						else
+							GHW_MakeRecordOfProgress( "Deleted old file : "+tempStr+".deleteMe")	
 						endif
 					elseif(V_isFolder)
 						DeleteFolder /P=IgorUserPath /Z tempStr+".deleteMe"
 						if(V_flag!=0)
 							GHW_MakeRecordOfProgress( "Could not delete "+tempStr+".deleteMe")
+						else
+							GHW_MakeRecordOfProgress( "Deleted old file : "+tempStr+".deleteMe")	
 						endif
 					elseif(V_isAliasShortcut)
 						DeleteFile /P=IgorUserPath /Z tempStr+".deleteMe"
 						if(V_flag!=0)
 							GHW_MakeRecordOfProgress( "Could not delete "+tempStr+".deleteMe")
+						else
+							GHW_MakeRecordOfProgress( "Deleted old file : "+tempStr+".deleteMe")	
 						endif		
 					endif
-					GHW_MakeRecordOfProgress( "Deleted old file : "+tempStr+".deleteMe")
 				endif
 				//OK, now we can, if needed rename existing file AND keep the user folder cleaner
 				//now check for existing target file and delete/rename if necessary
@@ -1138,19 +1154,27 @@ Function GHW_Uninstall()
 						DeleteFile /P=IgorUserPath /Z tempStr
 						if(V_flag!=0)
 							MoveFile /O/P=IgorUserPath tempStr as tempStr+".deleteMe" 
+							GHW_MakeRecordOfProgress( "Moved to .deleteMe existing file : "+tempStr)
+						else
+							GHW_MakeRecordOfProgress( "Deleted existing file : "+tempStr)
 						endif
 					elseif(V_isFolder)
 						DeleteFolder /P=IgorUserPath /Z tempStr
 						if(V_flag!=0)
 							MoveFolder /O/P=IgorUserPath tempStr as tempStr+".deleteMe" 
+							GHW_MakeRecordOfProgress( "Moved to .deleteMe existing file : "+tempStr)
+						else
+							GHW_MakeRecordOfProgress( "Deleted existing file : "+tempStr)
 						endif
 					elseif(V_isAliasShortcut)
 						DeleteFile /P=IgorUserPath /Z tempStr
 						if(V_flag!=0)
 							MoveFile /O/P=IgorUserPath tempStr as tempStr+".deleteMe" 
+							GHW_MakeRecordOfProgress( "Moved to .deleteMe existing file : "+tempStr)
+						else
+							GHW_MakeRecordOfProgress( "Deleted existing file : "+tempStr)
 						endif		
 					endif
-					GHW_MakeRecordOfProgress( "Deleted/moved to .deleteMe existing file : "+tempStr)
 				endif
 			endif
 		endfor
@@ -1261,6 +1285,7 @@ Function GHW_Install()
 			GHW_InstallPackage(LocalFolderPath,StringFromList(i,PackageListsToDownload))
 		endfor
 		GHW_MakeRecordOfProgress("Installation from local folder "+LocalFolderPath+" finished. All done. " )
+		DoAlert /T="Installation succesfully finished" 0, "Requested Installation finished succesfully. Delete the distribution zip file, folder with unzipped data and InstallLog.txt, if you do not need them anymore." 
 	else		//dowload folder from remote location...
 		For(i=0;i<dimsize(ListOfReleases,0);i+=1)
 			if(StringMatch(ListOfReleases[i][0], SelectedReleaseName ))
@@ -1273,7 +1298,6 @@ Function GHW_Install()
 		endif												//then append repoName-master.zip and that is current version (SAXS_IgorCode-master.zip)
 		LookHere = ListOfReleases[WhichReleaseUserWants][2]
 		string URLtoGet=StringByKey("SourceFileAddress", LookHere  , "=",";")
-		GHW_MakeRecordOfProgress("Installation from Github zip source "+URLtoGet+" started. " )
 		//need to build name of data inside the zip file... 
 		variable ItemsInPath=ItemsInList(URLtoGet,"/")
 		string InternalDataName = StringFromList(ItemsInPath-3, URLtoGet, "/")
@@ -1283,6 +1307,7 @@ Function GHW_Install()
 		else
 			InternalDataName +="-"+ RemoveEnding(StringFromList(ItemsInPath-1, URLtoGet, "/"),".zip")
 		endif
+		GHW_MakeRecordOfProgress("Installation from Github zip source "+URLtoGet+" started. " )
 		string FileContent
 		variable refNum
 		NewPath/O/C/Q userDesktop, SpecialDirPath("Desktop",0,0,0)
@@ -1359,6 +1384,7 @@ Function GHW_Install()
 			GHW_InstallPackage(DesktopFldr+InternalDataName,StringFromList(i,PackageListsToDownload))
 		endfor
 		GHW_MakeRecordOfProgress("Installation from local folder "+LocalFolderPath+" finished. All done. " )
+		DoAlert /T="Installation succesfully finished" 0, "Requested Installation finished succesfully. Delete the InstallLog.txt, if you do not need it anymore." 
 	endif	
 	SetDataFolder saveDFR					// Restore current data folder
 end
@@ -1493,7 +1519,7 @@ Function GHW_UnzipFileOnDesktopWindows(ZipFileName, UnzippedFolderName, deleteSo
 	GHW_MakeRecordOfProgress("Windows : Unzipped file "+ZipFileName+" to temp folder")
 	//now the folder IgorCode is in the Desktop/ZipFileTempFldr
 	//and we need it in Desktop... 
-	NewPath /C /O/Q/Z tempForIgorCode, strToDesktop+"IgorCode"
+	//NewPath /C /O/Q/Z tempForIgorCode, strToDesktop+"IgorCode"
 	cmd ="Xcopy  "+strToTemp+"IgorCode\\"+UnzippedFolderName+"\\*    "+strToDesktop+UnzippedFolderName+"\\ /s /y"
 	//cmd =strToDesktop+"moveData.bat "+strToDesktop+"IgorCode\\IgorCode\\    "+strToDesktop+"IgorCode"
 	ExecuteScriptText cmd
@@ -2642,19 +2668,29 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 			DeleteFile /P=targetFileFolderPath /Z FileToCopy
 			if(V_flag!=0)
 				MoveFile /O/P=targetFileFolderPath FileToCopy as FileToCopy+".deleteMe" 
+				GHW_MakeRecordOfProgress( "Moved to .deleteMe existing file : "+FileToCopy)
+			else
+				GHW_MakeRecordOfProgress( "Deleted existing file : "+FileToCopy)		
 			endif
 		elseif(V_isFolder)
 			DeleteFolder /P=targetFileFolderPath /Z FileToCopy
 			if(V_flag!=0)
 				MoveFolder /O/P=targetFileFolderPath FileToCopy as FileToCopy+".deleteMe" 
+				GHW_MakeRecordOfProgress( "Moved to .deleteMe existing file : "+FileToCopy)
+			else
+				GHW_MakeRecordOfProgress( "Deleted existing file : "+FileToCopy)		
 			endif
 		elseif(V_isAliasShortcut)
 			DeleteFile /P=targetFileFolderPath /Z FileToCopy
 			if(V_flag!=0)
 				MoveFile /O/P=targetFileFolderPath FileToCopy as FileToCopy+".deleteMe" 
-			endif		
+				GHW_MakeRecordOfProgress( "Moved to .deleteMe existing file : "+FileToCopy)
+			else
+				GHW_MakeRecordOfProgress( "Deleted existing file : "+FileToCopy)		
+			endif
+		
 		endif
-		GHW_MakeRecordOfProgress( "Deleted/moved to .deleteMe existing file : "+FileToCopy)
+		//GHW_MakeRecordOfProgress( "Deleted/moved to .deleteMe existing file : "+FileToCopy)
 	endif
 	//and now we can copy the file/folder in the right place
 	//first need to check the target folder exists...
@@ -2681,8 +2717,7 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 			CopyFolder /O/P=sourceFileFolderPath /Z  FileToCopy as IgorUserFilePathStr+FileToCopy
 			if(V_flag)
 				GHW_MakeRecordOfProgress( "Failed to copy "+FileToCopy, abortProgress=1)
-			endif
-		
+			endif	
 		endif
 		//note, this cannot handle links, separate code needed for making links. 
 		GHW_MakeRecordOfProgress( "Copied " + FileToCopy + " from "+PathToLocalData+PackgListFilePaths)

@@ -1205,7 +1205,9 @@ Function GHW_Uninstall()
 			endif
 		endfor
 	endfor	
+	GHW_MakeRecordOfProgress( "Finished unistallation of selected packages, All done.")
 	DoWIndow/K DownloadWarning
+	DoAlert/T="Finished unistallation" 0, "Selected packages were uninstalled. You need to REINSTALL any packages from this GitHub repository you want to use."
 	SetDataFolder saveDFR					// Restore current data folder
 end
 //**************************************************************************************************************************************
@@ -1308,10 +1310,11 @@ Function GHW_Install()
 		endfor
 		GHW_MakeRecordOfProgress("User picked following packages to install: "+PackageListsToDownload )
 		For(i=0;i<ItemsInList(ToModifyPackagesList);i+=1)
+			GHW_MakeRecordOfProgress("*****   Started installation of file from  : "+StringFromList(i,PackageListsToDownload) +"  *******")
 			GHW_InstallPackage(LocalFolderPath,StringFromList(i,PackageListsToDownload))
 		endfor
 		GHW_MakeRecordOfProgress("Installation from local folder "+LocalFolderPath+" finished. All done. " )
-		DoAlert /T="Installation succesfully finished" 0, "Requested Installation finished succesfully. Delete the distribution zip file, folder with unzipped data and InstallLog.txt, if you do not need them anymore." 
+		DoAlert /T="Installation succesfully finished" 0, "Requested Installation finished succesfully. Delete the InstallLog.txt, if you do not need it anymore." 
 	else		//dowload folder from remote location...
 		For(i=0;i<dimsize(ListOfReleases,0);i+=1)
 			if(StringMatch(ListOfReleases[i][0], SelectedReleaseName ))
@@ -1407,10 +1410,11 @@ Function GHW_Install()
 		endfor
 		GHW_MakeRecordOfProgress("User picked following packages to install: "+PackageListsToDownload )
 		For(i=0;i<ItemsInList(ToModifyPackagesList);i+=1)
+			GHW_MakeRecordOfProgress("*****   Started installation of file from  : "+StringFromList(i,PackageListsToDownload) +"  *******")
 			GHW_InstallPackage(DesktopFldr+InternalDataName,StringFromList(i,PackageListsToDownload))
 		endfor
 		GHW_MakeRecordOfProgress("Installation from local folder "+LocalFolderPath+" finished. All done. " )
-		DoAlert /T="Installation succesfully finished" 0, "Requested Installation finished succesfully. Delete the InstallLog.txt, if you do not need it anymore." 
+		DoAlert /T="Installation succesfully finished" 0, "Requested Installation finished succesfully. Delete the distribution zip file, folder with unzipped data and InstallLog.txt, if you do not need them anymore." 
 	endif	
 	SetDataFolder saveDFR					// Restore current data folder
 end
@@ -2489,7 +2493,7 @@ Function GHW_MakeRecordOfProgress(MessageToRecord, [header, abortProgress])
 		String str, head=SelectString(V_logEOF>2,"","\r\r\r\r")
 		head += "********************************************************************************\r"
 		head += "********************************************************************************\r"
-		sprintf str,"       Starting Installion using  %s\r", IgorInfo(1)
+		sprintf str,"       Starting Installation using  %s\r", IgorInfo(1)
 		head += str
 		sprintf str,"       on %s, %s\r", Secs2Date(DateTime,1), Secs2Time(DateTime,1)
 		head += str

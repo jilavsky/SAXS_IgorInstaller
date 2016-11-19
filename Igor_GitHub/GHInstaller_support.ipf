@@ -2698,11 +2698,11 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 				GHW_MakeRecordOfProgress("Could not delete "+FileToCopy+".deleteMe")
 			endif
 		elseif(V_isFolder)
-				//			DeleteFolder /P=targetFileFolderPath /Z FileToCopy+".deleteMe"
-				//here is nasty overwrite using OS script...
+				//this does not work unless user approves DeleteFolder: DeleteFolder /P=targetFileFolderPath /Z FileToCopy+".deleteMe"
+				//here is nasty workaround using OS script...
 				PathInfo targetFileFolderPath
 				tempStr = replaceString("::",S_Path+FileToCopy,":")
-				tempStr=RemoveFromList(StringFromList(0,tempStr  , ":"), tempStr  , ":")
+				tempStr=  RemoveFromList(StringFromList(0,tempStr  , ":"), tempStr  , ":")
 				tempStr = ParseFilePath(5, tempStr, "\\", 0, 0)
 				tempStr = ReplaceString("\\", tempStr, "/")
 				tempStr = "rm -Rdf  '/"+ReplaceString(".xop", tempStr, ".xop.deleteMe")+"'"
@@ -2752,15 +2752,21 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 				GHW_MakeRecordOfProgress( "Deleted existing file : "+FileToCopy)		
 			endif
 		endif
-		//GHW_MakeRecordOfProgress( "Deleted/moved to .deleteMe existing file : "+FileToCopy)
 	endif
 	//and now we can copy the file/folder in the right place
 	//first need to check the target folder exists...
-	string tempFldrName
+	string tempFldrName, FixedFileToCOpy, AlreadyCreatedPath
 	string tmpIgorUserFilePathStr=IgorUserFilePathStr
+	AlreadyCreatedPath = ""
 	variable i
-	for(i=0;i<(ItemsInList(FileToCopy,":")-1);i+=1)
-		tempFldrName=StringFromList(i,FileToCopy,":")
+	if(stringmatch(FileToCopy[0],":"))
+		FixedFileToCopy=FileToCopy[1,inf]
+	else
+		FixedFileToCopy=FileToCopy
+	endif
+	for(i=0;i<(ItemsInList(FixedFileToCopy,":")-1);i+=1)
+		tempFldrName=AlreadyCreatedPath+StringFromList(i,FixedFileToCopy,":")
+		AlreadyCreatedPath += StringFromList(i,FixedFileToCopy,":")+":"
 		GetFileFolderInfo/Q/Z replaceString("::",IgorUserFilePathStr+tempFldrName,":") 
 		if(V_Flag!=0)	//deas not exist, make it
 			NewPath /C/O/Q tmpCreatePath  replaceString("::",IgorUserFilePathStr+tempFldrName,":")
@@ -2769,8 +2775,6 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 		tmpIgorUserFilePathStr = replaceString("::",IgorUserFilePathStr+tempFldrName,":")+":"
 	endfor
 	GetFileFolderInfo/Q/Z/P=sourceFileFolderPath  FileToCopy		//this is source file
-	//GetFileFolderInfo/P=sourceFileFolderPath  FileToCopy		//this is source file
-	//print S_Path
 	if(V_Flag==0)				//exists...
 		if(V_isFile)				//ipf, ihf, dll,... simply a file
 			CopyFile /O/P=sourceFileFolderPath /Z  FileToCopy as replaceString("::",IgorUserFilePathStr+FileToCopy,":")

@@ -132,7 +132,7 @@ Function GHW_DwnldConfFileAndScanLocal()
 		//check for the file to exists
 		GetFileFolderInfo/Z/Q FileNameWithPath
 		if(V_Flag!=0)	//error, not found
-			GHW_MakeRecordOfProgress( "Did not find necessary configuration file "+FileNameWithPath+" while in "+GetRTStackInfo(3), abortProgress=1)
+			GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Did not find necessary configuration file "+FileNameWithPath, abortProgress=1)
 		endif
 		FileContent = PadString(FileContent, V_logEOF, 0x20 )
 		Open fileID  as FileNameWithPath
@@ -146,7 +146,7 @@ Function GHW_DwnldConfFileAndScanLocal()
 		Variable error = GetRTError(1)
 		if (error != 0)
 			DoWIndow/K DownloadWarning
-			GHW_MakeRecordOfProgress( "Error downloading data "+ConfigFileURL+" while in "+GetRTStackInfo(3), abortProgress=1)
+			GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Error downloading data "+ConfigFileURL, abortProgress=1)
 		endif
 		FileContent =  S_serverResponse
 	endif
@@ -157,7 +157,7 @@ Function GHW_DwnldConfFileAndScanLocal()
 	if(strlen(InstallerText)<10)	//no real content
 		DoWIndow/K DownloadWarning
 		SetDataFolder saveDFR					// Restore current data folder
-		GHW_MakeRecordOfProgress( "Installer text too short while in "+GetRTStackInfo(3), abortProgress=1)
+		GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+" Installer text too short", abortProgress=1)
 	endif
 	//list all Installable files here so we have cache of them.
 	GHW_MakeRecordOfProgress( "Recording local installed files, this may take a while")
@@ -1091,6 +1091,8 @@ Function GHW_Uninstall()
 	GHW_MakeRecordOfProgress("Started Unistallation of the packages", header=1) 
 	NewPath /Q/Z/O IgorUserPath, SpecialDirPath("Igor Pro User Files", 0, 0, 0 )
 	DoUpdate /W=DownloadWarning
+	string LinksList, LinkListFixed
+	variable ij
 	For(i=0;i<ItemsInList(ToModifyPackagesList);i+=1)
 		GUIReportActivityForUser = "Downloading "+StringFromList(i,PackageListsToDownload)
 		DoUpdate /W=DownloadWarning
@@ -1101,7 +1103,7 @@ Function GHW_Uninstall()
 			GHW_MakeRecordOfProgress("Downloaded file : "+ConfigFileURL) 
 		else
 			DoWIndow/K DownloadWarning
-			GHW_MakeRecordOfProgress("Error downloading data, cannot proceed in "+GetRTStackInfo(3), abortProgress=1) 
+			GHW_MakeRecordOfProgress("Abort in : "+GetRTStackInfo(3)+"Error downloading data, cannot proceed", abortProgress=1) 
 		endif
 		FileContent=GHI_XMLremoveComments(FileContent)		//get rid of comments, confuses the rest of the code... 
 		//FileContent now contains content of the file...
@@ -1109,17 +1111,32 @@ Function GHW_Uninstall()
 		if(strlen(InstallerText)<10)	//no real content
 			DoWIndow/K DownloadWarning
 			SetDataFolder saveDFR					// Restore current data folder
-			GHW_MakeRecordOfProgress("No content came from server, cannot proceed in "+GetRTStackInfo(3), abortProgress=1) 
+			GHW_MakeRecordOfProgress("Abort in : "+GetRTStackInfo(3)+"No content came from server, cannot proceed  ", abortProgress=1) 
 		endif
 		GUIReportActivityForUser = "Deleting files for "+StringFromList(i,PackageListsToDownload)
 		DoUpdate /W=DownloadWarning
+		string igorCmd
 		string/g $(StringFromList(i,PackageListsToDownload)+"Pkcg")
 		SVAR PackgList=$(StringFromList(i,PackageListsToDownload)+"Pkcg") 
 		//PackgList=GHW_ListFilesInPckgList(FileContent) 
  		PackgList= GHW_ListPlatformSpecificValues(FileContent, "File", IgorInfo(2))
+// 		LinksList=GHW_ListPlatformSpecificValues(FileContent, "xopLinks", IgorInfo(2))
+// 		if(stringMatch(IgorInfo(2),"Windows"))
+// 			For(ij=0;ij<ItemsInList(LinksList);ij+=1)
+// 				LinkListFixed=LinksList+".lnk"+";"
+// 			endfor
+// 		else
+// 			LinkListFixed=LinksList
+// 		endif
+// 		PackgList+=LinkListFixed
 		For(j=0;j<ItemsInList(PackgList);j+=1)
 			tempStr = StringFromList(j,PackgList,";")
+			string FoldStr
 			if(strlen(tempStr)>2)		//clean up accidental empty lines
+				if(!stringMatch(tempStr[0],":"))
+					tempStr = ":"+tempStr
+				endif
+				tempStr = replaceString("/",tempStr,":")
 				//tempStr = StringFromList(ItemsInList(tempStr, "/")-1, tempStr , "/")
 				GetFileFolderInfo/Q/Z/P=IgorUserPath  tempStr+".deleteMe"
 				if(V_Flag==0)		//file/xop found, get rid of it
@@ -1131,11 +1148,21 @@ Function GHW_Uninstall()
 							GHW_MakeRecordOfProgress( "Deleted old file : "+tempStr+".deleteMe")	
 						endif
 					elseif(V_isFolder)
-						DeleteFolder /P=IgorUserPath /Z tempStr+".deleteMe"
-						if(V_flag!=0)
-							GHW_MakeRecordOfProgress( "Could not delete "+tempStr+".deleteMe")
+						//here is nasty overwrite using OS script...
+						PathInfo IgorUserPath
+						FoldStr = replaceString("::",S_Path+tempStr,":")
+						FoldStr=RemoveFromList(StringFromList(0,FoldStr  , ":"), FoldStr  , ":")
+						FoldStr = ParseFilePath(5, FoldStr, "\\", 0, 0)
+						FoldStr = ReplaceString("\\", FoldStr, "/")
+						FoldStr = "rm -Rdf  '/"+ReplaceString(".xop", FoldStr, ".xop.deleteMe")+"'"
+						sprintf igorCmd, "do shell script \"%s\"", FoldStr
+						//print igorCmd
+						ExecuteScriptText igorCmd
+						GetFileFolderInfo/Q/Z/P=IgorUserPath  tempStr+".deleteMe"
+						if(V_flag==0)
+							GHW_MakeRecordOfProgress( "Could not delete folder/xop"+tempStr+".deleteMe")
 						else
-							GHW_MakeRecordOfProgress( "Deleted old file : "+tempStr+".deleteMe")	
+							GHW_MakeRecordOfProgress( "Deleted old file : "+tempStr+".deleteMe")
 						endif
 					elseif(V_isAliasShortcut)
 						DeleteFile /P=IgorUserPath /Z tempStr+".deleteMe"
@@ -1159,12 +1186,11 @@ Function GHW_Uninstall()
 							GHW_MakeRecordOfProgress( "Deleted existing file : "+tempStr)
 						endif
 					elseif(V_isFolder)
-						DeleteFolder /P=IgorUserPath /Z tempStr
-						if(V_flag!=0)
-							MoveFolder /O/P=IgorUserPath tempStr as tempStr+".deleteMe" 
+						MoveFolder /O/P=IgorUserPath tempStr as tempStr+".deleteMe" 
+						if(V_Flag==0)
 							GHW_MakeRecordOfProgress( "Moved to .deleteMe existing file : "+tempStr)
 						else
-							GHW_MakeRecordOfProgress( "Deleted existing file : "+tempStr)
+							GHW_MakeRecordOfProgress( "Could NOT move existing file : "+tempStr+" to .deleteMe")
 						endif
 					elseif(V_isAliasShortcut)
 						DeleteFile /P=IgorUserPath /Z tempStr
@@ -1267,7 +1293,7 @@ Function GHW_Install()
 	if(stringmatch(SelectedReleaseName,"Local Folder"))	//using local folder. 	
 		GetFileFolderInfo/Q/Z  LocalFolderPath
 		if(V_Flag!=0)
-			GHW_MakeRecordOfProgress("Installation from local folder "+LocalFolderPath+" cannot proceed, folder not found", abortProgress=1) 
+			GHW_MakeRecordOfProgress("Abort in : "+GetRTStackInfo(3)+"Installation from local folder "+LocalFolderPath+" cannot proceed, folder not found", abortProgress=1) 
 		else
 			GHW_MakeRecordOfProgress("Installation from local folder "+LocalFolderPath+" started. Found the source folder. " )
 		endif
@@ -1336,7 +1362,7 @@ Function GHW_Install()
 			Variable error = GetRTError(1)
 			if (error != 0)
 				DoWIndow/K DownloadWarning
-				GHW_MakeRecordOfProgress("Error Downloading Package zip file "+URLtoGet+" from GitHub. Aborting.", abortprogress=1 )
+				GHW_MakeRecordOfProgress("Abort in : "+GetRTStackInfo(3)+"Error Downloading Package zip file "+URLtoGet+" from GitHub.", abortprogress=1 )
 			endif
 			sleep/S 3		//just to flush the data to disk and avoid getting ahead of system with reading file in cache. 
 			//			str= "Done downloading distribution zip file, got : "+num2str(1.0486*strlen(fileBytes)/(1024*1024))+" Mbytes"
@@ -1365,9 +1391,9 @@ Function GHW_Install()
 			//unzip on Mac using script. 
 			GUIReportActivityForUser = "Unzipping "+InternalDataName+".zip file." 
 			GHW_MakeRecordOfProgress("Macintosh : unzipping "+InternalDataName+".zip file." )
-			err = GHW_UnZipOnMac(InternalDataName+".zip",DesktopFldr,deleteZip=1, overWrite=1, printIt=1)
+			err = GHW_UnZipOnMac(InternalDataName+".zip",DesktopFldr,deleteZip=0, overWrite=1, printIt=1)
 			if(err)
-				GHW_MakeRecordOfProgress("Error in unzipping of "+InternalDataName+".zip file on OSX. Aborting.", abortprogress=1 )
+				GHW_MakeRecordOfProgress("Abort in : "+GetRTStackInfo(3)+"Error in unzipping of "+InternalDataName+".zip file on OSX.", abortprogress=1 )
 			endif
 		endif
 		DoWIndow/K DownloadWarning
@@ -1400,22 +1426,23 @@ Static Function GHW_UnZipOnMac(zipFile,DestFolder,[deleteZip,overWrite,printIt])
 	deleteZip = ParamIsDefault(deleteZip) || numtype(deleteZip) ? 0 : deleteZip
 	overWrite = ParamIsDefault(overWrite) || numtype(overWrite) ? 0 : overWrite
 	printIt = ParamIsDefault(printIt) || numtype(printIt) ? strlen(GetRTStackInfo(2))==0 : printIt
+	String str=""
 	if (!StringMatch(IgorInfo(2),"Macintosh"))
 		GHW_MakeRecordOfProgress("Macintosh : ERROR -- UnZipOnMac() only works on Macintosh")
 		return 1
 	endif
 
 	// check for valid input zip file
-	GetFileFolderInfo/P=home/Q/Z=1 zipFile
+	GetFileFolderInfo/P=Desktop/Q/Z=1 zipFile
 	if (V_Flag || !V_isFile)
 		if (printIt)
-			//Inst_Append2Log("ERROR -- file not found, nothing done",0)
+			sprintf str, "Macintosh : Error - did not find valid \"%s\" file\r",zipFile
+			GHW_MakeRecordOfProgress(str)
 		endif
 		return 1
 	endif
 	printIt = StringMatch(S_Path,zipFile) ? printIt : 1
 
-	String str=""
 	zipFile = S_Path
 	if (!StringMatch(ParseFilePath(4,zipFile,":",0,0),"zip"))
 		if (printIt)
@@ -1429,10 +1456,10 @@ Static Function GHW_UnZipOnMac(zipFile,DestFolder,[deleteZip,overWrite,printIt])
 	if (strlen(DestFolder)<1)
 		DestFolder = ParseFilePath(1,zipFile,":",1,0)
 	endif
-	GetFileFolderInfo/P=home/Q/Z=1 DestFolder
+	GetFileFolderInfo/P=Desktop/Q/Z=1 DestFolder
 	if (V_Flag || !V_isFolder)
 		if (printIt)
-		GHW_MakeRecordOfProgress("Macintosh : ERROR -- destination folder not found, nothing done")
+			GHW_MakeRecordOfProgress("Macintosh : ERROR -- destination folder not found, nothing done")
 		endif
 		return 1
 	endif
@@ -1477,7 +1504,7 @@ Function GHW_UnzipFileOnDesktopWindows(ZipFileName, UnzippedFolderName, deleteSo
 	string UnzippedFolderName 	//the folder name inside the zip file
 	variable deleteSource		// also delete the source zip file if this is TRUE
 	if (!StringMatch(IgorInfo(2),"Windows"))
-		GHW_MakeRecordOfProgress("ERROR -- UnzipFileOnDesktopWindows() only works on Windows",abortprogress=1)
+		GHW_MakeRecordOfProgress("Abort in : "+GetRTStackInfo(3)+" ERROR -- UnzipFileOnDesktopWindows() only works on Windows",abortprogress=1)
 		return 1
 	endif
 
@@ -2542,7 +2569,11 @@ Function GHW_CreateLinks(FileToLink)
 	string ExtOrProcPath
 	string FileToLinkLoc
 	if(StringMatch(FileToLink, "*.xop"))		//xop
-		ExtOrProcPath = "Igor Extensions (64-bit)"
+		if(stringMatch(FileToLink,"* (64-bit)*"))
+			ExtOrProcPath = "Igor Extensions (64-bit)"
+		else	//old 32 bits
+			ExtOrProcPath = "Igor Extensions"
+		endif
 	else
 		ExtOrProcPath = "Igor Procedures"
 	endif
@@ -2585,19 +2616,27 @@ Function GHW_CreateLinks(FileToLink)
 			DeleteFile /P=targetFileFolderPath /Z FileToLinkName
 			if(V_flag!=0)
 				MoveFile /O/P=targetFileFolderPath FileToLinkName as FileToLinkName+".deleteMe" 
+				GHW_MakeRecordOfProgress("Moved to .deleteMe existing file : "+FileToLinkName)
+			else
+				GHW_MakeRecordOfProgress("Deleted existing file : "+FileToLinkName)
 			endif
 		elseif(V_isFolder)
 			DeleteFolder /P=targetFileFolderPath /Z FileToLinkName
 			if(V_flag!=0)
 				MoveFolder /O/P=targetFileFolderPath FileToLinkName as FileToLinkName+".deleteMe" 
+				GHW_MakeRecordOfProgress("Moved to .deleteMe existing file : "+FileToLinkName)
+			else
+				GHW_MakeRecordOfProgress("Deleted existing file : "+FileToLinkName)
 			endif
 		elseif(V_isAliasShortcut)
 			DeleteFile /P=targetFileFolderPath /Z FileToLinkName
 			if(V_flag!=0)
 				MoveFile /O/P=targetFileFolderPath FileToLinkName as FileToLinkName+".deleteMe" 
+				GHW_MakeRecordOfProgress("Moved to .deleteMe existing file : "+FileToLinkName)
+			else
+				GHW_MakeRecordOfProgress("Deleted existing file : "+FileToLinkName)
 			endif		
 		endif
-		GHW_MakeRecordOfProgress("Deleted/moved to .deleteMe existing file : "+FileToLinkName)
 		//print "Deleted/moved to .deleteMe existing file : "+FileToLinkName
 	endif
 	//now we should be able to make the alias
@@ -2628,6 +2667,10 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 	if(strlen(FileToCopy)<2)
 		return 0
 	endif
+	FileToCopy =  ReplaceString("/", FileToCopy, ":")
+	if(!StringMatch(FileToCopy[0],":" ))		//make this in relative path for 
+		FileToCopy = ":"+FileToCopy
+	endif
 	//we get path to file/folder(xop) and will copy from source (PathToLocalData) to location
 	//PackgListFilePaths is specific path where to look for the souce, not reproduced in target
 	//FileToCopy is source and target path.
@@ -2639,7 +2682,10 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 	NewPath /O/Q targetFileFolderPath, SpecialDirPath("Igor Pro User Files", 0, 0, 0 ) 
 	string IgorUserFilePathStr=SpecialDirPath("Igor Pro User Files", 0, 0, 0 )
 	NewPath /O/Q sourceFileFolderPath, PathToLocalData+PackgListFilePaths
+	//PathInfo sourceFileFolderPath
+	//print S_Path+FileToCopy
 	//variable fileNum
+	string tempStr, igorCmd
 	GetFileFolderInfo/Q/Z/P=targetFileFolderPath  FileToCopy+".deleteMe"
 	if(V_Flag==0)		//file/xop found, get rid of it
 		if(V_isFile)
@@ -2648,10 +2694,23 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 				GHW_MakeRecordOfProgress("Could not delete "+FileToCopy+".deleteMe")
 			endif
 		elseif(V_isFolder)
-			DeleteFolder /P=targetFileFolderPath /Z FileToCopy+".deleteMe"
-			if(V_flag!=0)
-				GHW_MakeRecordOfProgress( "Could not delete "+FileToCopy+".deleteMe")
-			endif
+				//			DeleteFolder /P=targetFileFolderPath /Z FileToCopy+".deleteMe"
+				//here is nasty overwrite using OS script...
+				PathInfo targetFileFolderPath
+				tempStr = replaceString("::",S_Path+FileToCopy,":")
+				tempStr=RemoveFromList(StringFromList(0,tempStr  , ":"), tempStr  , ":")
+				tempStr = ParseFilePath(5, tempStr, "\\", 0, 0)
+				tempStr = ReplaceString("\\", tempStr, "/")
+				tempStr = "rm -Rdf  '/"+ReplaceString(".xop", tempStr, ".xop.deleteMe")+"'"
+				sprintf igorCmd, "do shell script \"%s\"", tempStr
+				//print igorCmd
+				ExecuteScriptText igorCmd
+				GetFileFolderInfo/Q/Z/P=targetFileFolderPath  FileToCopy+".deleteMe"
+				if(V_flag==0)
+					GHW_MakeRecordOfProgress( "Could not delete folder/xop"+FileToCopy+".deleteMe")
+				else
+					GHW_MakeRecordOfProgress( "Deleted old file : "+FileToCopy+".deleteMe")
+				endif
 		elseif(V_isAliasShortcut)
 			DeleteFile /P=targetFileFolderPath /Z FileToCopy+".deleteMe"
 			if(V_flag!=0)
@@ -2673,13 +2732,13 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 				GHW_MakeRecordOfProgress( "Deleted existing file : "+FileToCopy)		
 			endif
 		elseif(V_isFolder)
-			DeleteFolder /P=targetFileFolderPath /Z FileToCopy
-			if(V_flag!=0)
-				MoveFolder /O/P=targetFileFolderPath FileToCopy as FileToCopy+".deleteMe" 
-				GHW_MakeRecordOfProgress( "Moved to .deleteMe existing file : "+FileToCopy)
-			else
-				GHW_MakeRecordOfProgress( "Deleted existing file : "+FileToCopy)		
-			endif
+				GetFileFolderInfo/Q/Z/P=targetFileFolderPath  FileToCopy+".deleteMe"
+				if(V_flag!=0)
+					MoveFolder /O/P=targetFileFolderPath FileToCopy as FileToCopy+".deleteMe" 
+					GHW_MakeRecordOfProgress( "Moved to .deleteMe existing file : "+FileToCopy)
+				else
+					GHW_MakeRecordOfProgress( "Cannot delete existing file : "+FileToCopy +" the old .deleteMe file is still present")		
+				endif
 		elseif(V_isAliasShortcut)
 			DeleteFile /P=targetFileFolderPath /Z FileToCopy
 			if(V_flag!=0)
@@ -2688,7 +2747,6 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 			else
 				GHW_MakeRecordOfProgress( "Deleted existing file : "+FileToCopy)		
 			endif
-		
 		endif
 		//GHW_MakeRecordOfProgress( "Deleted/moved to .deleteMe existing file : "+FileToCopy)
 	endif
@@ -2697,32 +2755,34 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 	string tempFldrName
 	string tmpIgorUserFilePathStr=IgorUserFilePathStr
 	variable i
-	for(i=0;i<(ItemsInList(FileToCopy,"/")-1);i+=1)
-		tempFldrName=StringFromList(i,FileToCopy,"/")
-		GetFileFolderInfo/Q/Z tmpIgorUserFilePathStr+tempFldrName
+	for(i=0;i<(ItemsInList(FileToCopy,":")-1);i+=1)
+		tempFldrName=StringFromList(i,FileToCopy,":")
+		GetFileFolderInfo/Q/Z replaceString("::",IgorUserFilePathStr+tempFldrName,":") 
 		if(V_Flag!=0)	//deas not exist, make it
-			NewPath /C/O/Q tmpCreatePath  tmpIgorUserFilePathStr+tempFldrName
-			GHW_MakeRecordOfProgress( "Created new folder " + tmpIgorUserFilePathStr+tempFldrName)
+			NewPath /C/O/Q tmpCreatePath  replaceString("::",IgorUserFilePathStr+tempFldrName,":")
+			GHW_MakeRecordOfProgress( "Created new folder " + replaceString("::",IgorUserFilePathStr+tempFldrName,":"))
 		endif
-		tmpIgorUserFilePathStr = tmpIgorUserFilePathStr+tempFldrName+":"
+		tmpIgorUserFilePathStr = replaceString("::",IgorUserFilePathStr+tempFldrName,":")+":"
 	endfor
 	GetFileFolderInfo/Q/Z/P=sourceFileFolderPath  FileToCopy		//this is source file
+	//GetFileFolderInfo/P=sourceFileFolderPath  FileToCopy		//this is source file
+	//print S_Path
 	if(V_Flag==0)				//exists...
 		if(V_isFile)				//ipf, ihf, dll,... simply a file
-			CopyFile /O/P=sourceFileFolderPath /Z  FileToCopy as IgorUserFilePathStr+FileToCopy
+			CopyFile /O/P=sourceFileFolderPath /Z  FileToCopy as replaceString("::",IgorUserFilePathStr+FileToCopy,":")
 			if(V_flag)
-				GHW_MakeRecordOfProgress( "Failed to copy "+FileToCopy, abortProgress=1)
+				GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Failed to copy "+FileToCopy, abortProgress=1)
 			endif
 		elseif(V_isFolder)	//xops on Mac are folders
-			CopyFolder /O/P=sourceFileFolderPath /Z  FileToCopy as IgorUserFilePathStr+FileToCopy
+			CopyFolder /O /P=sourceFileFolderPath/Z  FileToCopy as replaceString("::",IgorUserFilePathStr+FileToCopy,":")
 			if(V_flag)
-				GHW_MakeRecordOfProgress( "Failed to copy "+FileToCopy, abortProgress=1)
+				GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Failed to copy "+FileToCopy, abortProgress=1)
 			endif	
 		endif
 		//note, this cannot handle links, separate code needed for making links. 
 		GHW_MakeRecordOfProgress( "Copied " + FileToCopy + " from "+PathToLocalData+PackgListFilePaths)
 	else
-		GHW_MakeRecordOfProgress( "ERROR: Source File not found : " +FileToCopy, abortprogress=1)
+		GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"ERROR: Source File not found : " +FileToCopy, abortprogress=1)
 	endif
 	return 1
 end

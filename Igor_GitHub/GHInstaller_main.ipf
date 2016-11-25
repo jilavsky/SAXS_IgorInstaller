@@ -1,6 +1,6 @@
 #pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 0.3
+#pragma version = 0.5
 #pragma IgorVersion = 7.00
 
 
@@ -9,8 +9,7 @@ Strconstant ksNameOfPackages ="Irena, Nika, and Indra"
 Strconstant ksWebAddressForConfFile ="https://raw.githubusercontent.com/jilavsky/SAXS_IgorCode/master/"
 Strconstant ksNameOfConfFile ="IgorInstallerConfig.xml"
 
-//#include ":GHInstaller_support", version >=0.3
-
+//0.5 ready for beta release. 
 //0.3 looks like first functioning version on Windows 10. 
 
 //Universal installer using Github as source for installtions files. 
@@ -27,18 +26,21 @@ end
 //**************************************************************** 
 //**************************************************************** 
 Function GHW_Start()
-	DoWIndow GH_MainPanel
-	if(V_Flag)
-		DoWIndow/K GH_MainPanel
-	endif
-	GHW_InitializeInstaller()
-	GHW_DwnldConfFileAndScanLocal()
-	GHW_PrepareGUIData()
-	GHW_CreateMainpanel()
-	if (str2num(stringByKey("IGORVERS",IgorInfo(0)))<6.37)
-			DoAlert /T="Igor update message :"  0, "Igor 6 has been updated (7/2015) to version 6.37. Please, update your Igor to latest version as soon as possible!"  
+	if (str2num(stringByKey("IGORVERS",IgorInfo(0)))<7.0)
+			DoAlert /T="Important message :"  0, "This installer will work ONLY with Igor 7. Please, update your Igor before running this installer!"  
 			BrowseURL "http://www.wavemetrics.com/support/versions.htm"
+	else
+		DoWIndow GH_MainPanel
+		if(V_Flag)
+			DoWIndow/K GH_MainPanel
+		endif
+		GHW_InitializeInstaller()
+		GHW_DwnldConfFileAndScanLocal(0)
+		GHW_PrepareGUIData()
+		GHW_CreateMainpanel()
+		GHW_GenerateHelp()
 	endif
+
 end
 //**************************************************************** 
 //**************************************************************** 
@@ -112,7 +114,7 @@ Function GHW_CheckProc(cba) : CheckBoxControl
 				else
 					KillPath/Z LocalInstallationFolder
 				endif
-				GHW_DwnldConfFileAndScanLocal()
+				GHW_DwnldConfFileAndScanLocal(1)
 				GHW_PrepareGUIData()
 				//Inst_CheckForLocalCopyPresence()
 			endif
@@ -141,12 +143,18 @@ Function GHW_ButtonProc(ba) : ButtonControl
 			endif
 			
 			if(stringMatch(ba.ctrlName,"CheckVersions"))
-				GHW_DwnldConfFileAndScanLocal()
+				GHW_DwnldConfFileAndScanLocal(1)
 				GHW_PrepareGUIData()
 			endif
 
-			if(stringMatch(ba.ctrlName,"InstallPackages"))		
-				GHW_Install()	
+			if(stringMatch(ba.ctrlName,"InstallPackages"))	
+				if(GHW_IsThereWhatToDo())
+					GHW_Install()	
+					GHW_DwnldConfFileAndScanLocal(1)
+					GHW_PrepareGUIData()
+				else
+					DoALert 0, "Nothing to do, select some packages to install"
+				endif
 			endif
 			
 			if(stringMatch(ba.ctrlName,"OpenWebSite"))			
@@ -164,7 +172,13 @@ Function GHW_ButtonProc(ba) : ButtonControl
 
 
 			if(stringMatch(ba.ctrlName,"UninstallPackages"))
-				GHW_Uninstall()
+				if(GHW_IsThereWhatToDo())
+					GHW_Uninstall()
+					GHW_DwnldConfFileAndScanLocal(1)
+					GHW_PrepareGUIData()
+				else
+					DoALert 0, "Nothing to do, select some packages to uninstall"
+				endif
 			endif
 						
 			if(stringMatch(ba.ctrlName,"GetHelp"))
@@ -177,7 +191,18 @@ Function GHW_ButtonProc(ba) : ButtonControl
 	return 0
 End
 //**************************************************************** 
-//**************************************************************** 
+Function GHW_IsThereWhatToDo()
+	Wave SelVersionsAndInstall = root:Packages:GHInstaller:SelVersionsAndInstall	
+	variable NumPckgs = DimSize(SelVersionsAndInstall, 0 )
+	variable i, result
+	result = 0
+	for(i=0;i<NumPckgs;i+=1)
+		result += SelVersionsAndInstall[i][3] > 32 ? 1 : 0
+	endfor
+	
+	return result 
+
+end//**************************************************************** 
 //**************************************************************** 
 Function GHW_PopMenuProc(pa) : PopupMenuControl
 	STRUCT WMPopupAction &pa

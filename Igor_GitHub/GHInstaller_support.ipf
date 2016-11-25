@@ -1,8 +1,10 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-#pragma version = 0.3
+#pragma version = 0.5
 
+//0.5 fixed more bugs, better handling of releases by now. 
+//0.4 improved handling of data from local folder, now it can find out the versions of packages
 //0.3 added lots of new functionality and was tested on Windows 10
 //0.2 added functions to load IgorInstallerConfig.xml and parse the content into text waves in Igor
 //0.1 Added and modified XML code. Code from ALways_First.ipf by Jon Tischler. Functions renamed to protect name space.  
@@ -103,8 +105,9 @@
 //</IgorInstaller>
 
 //  ======================================================================================  //
-Function GHW_DwnldConfFileAndScanLocal()
-//this function scans and provides list of available releases. 
+Function GHW_DwnldConfFileAndScanLocal(DownloadAnything)
+	variable DownloadAnything		//set to 0 to just intialzie locally...
+	//this function scans and provides list of available releases. 
 	if(!DataFolderExists("root:Packages:GHInstaller"))
 		GHW_InitializeInstaller()
 	endif
@@ -121,64 +124,69 @@ Function GHW_DwnldConfFileAndScanLocal()
 	SVAR ListOfBetaReleaseNames = root:Packages:GHInstaller:ListOfBetaReleaseNames
 	SVAR GUIReportActivityForUser=root:Packages:GHInstaller:GUIReportActivityForUser
 	SVAR LocalFolderPath = root:Packages:GHInstaller:LocalFolderPath
+	SVAR SelectedReleaseName = root:Packages:GHInstaller:SelectedReleaseName
 	variable fileID
 	string FileContent=""
-	GHW_DownloadWarning()
+	string OldSelectedReleaseName = SelectedReleaseName
 	
-	if(UseLocalFolder)
-		GUIReportActivityForUser = "Reading Configuration from local folder"
-		//source is local folder
-		String FileNameWithPath=LocalFolderPath+ksNameOfConfFile
-		//check for the file to exists
-		GetFileFolderInfo/Z/Q FileNameWithPath
-		if(V_Flag!=0)	//error, not found
-			GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Did not find necessary configuration file "+FileNameWithPath, abortProgress=1)
+	if(DownloadAnything)
+		GHW_DownloadWarning()
+	
+		if(UseLocalFolder)
+			GUIReportActivityForUser = "Reading Configuration from local folder"
+			//source is local folder
+			String FileNameWithPath=LocalFolderPath+ksNameOfConfFile
+			//check for the file to exists
+			GetFileFolderInfo/Z/Q FileNameWithPath
+			if(V_Flag!=0)	//error, not found
+				GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Did not find necessary configuration file "+FileNameWithPath, abortProgress=1)
+			endif
+			FileContent = PadString(FileContent, V_logEOF, 0x20 )
+			Open fileID  as FileNameWithPath
+			FBinRead fileID, FileContent
+			close fileID
+		else		//web is the source	
+			GUIReportActivityForUser = "Downloading Configuration from GitHub"
+			DoUpdate /W=DownloadWarning
+			string ConfigFileURL=ksWebAddressForConfFile+ksNameOfConfFile
+			URLRequest url=ConfigFileURL
+			Variable error = GetRTError(1)
+			if (error != 0)
+				DoWIndow/K DownloadWarning
+				GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Error downloading data "+ConfigFileURL, abortProgress=1)
+			endif
+			FileContent =  S_serverResponse
 		endif
-		FileContent = PadString(FileContent, V_logEOF, 0x20 )
-		Open fileID  as FileNameWithPath
-		FBinRead fileID, FileContent
-		close fileID
-	else		//web is the source	
-		GUIReportActivityForUser = "Downloading Configuration from GitHub"
-		DoUpdate /W=DownloadWarning
-		string ConfigFileURL=ksWebAddressForConfFile+ksNameOfConfFile
-		URLRequest url=ConfigFileURL
-		Variable error = GetRTError(1)
-		if (error != 0)
+		//print FileContent
+		FileContent=GHI_XMLremoveComments(FileContent)		//get rid of comments, confuse rest of the code... 
+		//FileContent now contains content of the file...
+		string InstallerText=GHI_XMLtagContents("IgorInstaller",FileContent)	//if nothing, wrong format
+		if(strlen(InstallerText)<10)	//no real content
 			DoWIndow/K DownloadWarning
-			GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Error downloading data "+ConfigFileURL, abortProgress=1)
+			SetDataFolder saveDFR					// Restore current data folder
+			GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+" Installer text too short", abortProgress=1)
 		endif
-		FileContent =  S_serverResponse
-	endif
-	//print FileContent
-	FileContent=GHI_XMLremoveComments(FileContent)		//get rid of comments, confuse rest of the code... 
-	//FileContent now contains content of the file...
-	string InstallerText=GHI_XMLtagContents("IgorInstaller",FileContent)	//if nothing, wrong format
-	if(strlen(InstallerText)<10)	//no real content
+		//list all Installable files here so we have cache of them.
+		GHW_MakeRecordOfProgress( "Recording local installed files, this may take a while")
+		GHW_ListAllInstallableFiles()
 		DoWIndow/K DownloadWarning
-		SetDataFolder saveDFR					// Restore current data folder
-		GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+" Installer text too short", abortProgress=1)
+		//get what are the names of packages we should be able to find
+		GHW_ListPackagesName(InstallerText, ListOfPackages)
+		CurrentReleaseName = GHW_GetCurrentRelease(InstallerText)
+		CurrentBetaReleaseName = GHW_GetCurrentBetaRelease(InstallerText)
+		GHW_ListReleases(FileContent, ListOfReleases)
+		//Parse these for further use by GUI
+		ListOfReleaseNames=""
+		ListOfBetaReleaseNames=""
+		variable i
+		For(i=0;i<dimsize(ListOfReleases,0);i+=1)
+			if(StringMatch(ListOfReleases[i][1], "normal" ))
+				ListOfReleaseNames+=ListOfReleases[i][0]+";"
+			elseif(StringMatch(ListOfReleases[i][1], "beta" ))
+				ListOfBetaReleaseNames+=ListOfReleases[i][0]+";"
+			endif
+		endfor
 	endif
-	//list all Installable files here so we have cache of them.
-	GHW_MakeRecordOfProgress( "Recording local installed files, this may take a while")
-	GHW_ListAllInstallableFiles()
-	DoWIndow/K DownloadWarning
-	//get what are the names of packages we should be able to find
-	GHW_ListPackagesName(InstallerText, ListOfPackages)
-	CurrentReleaseName = GHW_GetCurrentRelease(InstallerText)
-	CurrentBetaReleaseName = GHW_GetCurrentBetaRelease(InstallerText)
-	GHW_ListReleases(FileContent, ListOfReleases)
-	//Parse these for further use by GUI
-	ListOfReleaseNames=""
-	ListOfBetaReleaseNames=""
-	variable i
-	For(i=0;i<dimsize(ListOfReleases,0);i+=1)
-		if(StringMatch(ListOfReleases[i][1], "normal" ))
-			ListOfReleaseNames+=ListOfReleases[i][0]+";"
-		elseif(StringMatch(ListOfReleases[i][1], "beta" ))
-			ListOfBetaReleaseNames+=ListOfReleases[i][0]+";"
-		endif
-	endfor
 	//and now we have all data from XML file in Igor as Igor waves/strings.  
 	SetDataFolder saveDFR					// Restore current data folder
 end 
@@ -619,43 +627,43 @@ static Function GHW_ListAllInstallableFiles()
 	DoUpdate  /W=DownloadWarning 
 	GetFileFolderInfo/Q/Z/P=Igor "Igor Procedures"	
 	if(V_Flag==0)
-		GHW_ListProcFiles(S_Path,1 )
+		GHW_ListProcFiles(S_Path,1,"UseProcedureFiles" )
 	endif
 	GetFileFolderInfo/Q/Z GHW_GetIgorUserFilesPath()+"Igor Procedures:"
 	if(V_Flag==0)
-		GHW_ListProcFiles(GHW_GetIgorUserFilesPath()+"Igor Procedures:",0)
+		GHW_ListProcFiles(GHW_GetIgorUserFilesPath()+"Igor Procedures:",0,"UseProcedureFiles")
 	endif
 	//user procedures 
 	GUIReportActivityForUser = "Scanning local User Procedures"
 	DoUpdate  /W=DownloadWarning 
 	GetFileFolderInfo/Q/Z/P=Igor "User Procedures"	
 	if(V_Flag==0)
-		GHW_ListProcFiles(S_Path,0)
+		GHW_ListProcFiles(S_Path,0,"UseProcedureFiles")
 	endif
 	path = GHW_GetIgorUserFilesPath()				//HR This is needed because of a bug in SpecialDirPath prior to 6.20B03.
 	path += "User Procedures:"					
 	GetFileFolderInfo/Q/Z (path)	
 	if(V_Flag==0)
-		GHW_ListProcFiles(path,0)	//HR Reuse path variable
+		GHW_ListProcFiles(path,0,"UseProcedureFiles")	//HR Reuse path variable
 	endif
 	//xops
 	GUIReportActivityForUser = "Scanning local xop packages"
 	DoUpdate  /W=DownloadWarning 
 	GetFileFolderInfo/Q/Z/P=Igor "Igor Extensions (64-bit)"	
 	if(V_Flag==0)
-		GHW_ListProcFiles(S_Path, 0)
+		GHW_ListProcFiles(S_Path, 0,"UseProcedureFiles")
 	endif
 	GetFileFolderInfo/Q/Z (GHW_GetIgorUserFilesPath()+"Igor Extensions (64-bit):")
 	if(V_Flag==0)
-		GHW_ListProcFiles(GHW_GetIgorUserFilesPath()+"Igor Extensions (64-bit):",0)
+		GHW_ListProcFiles(GHW_GetIgorUserFilesPath()+"Igor Extensions (64-bit):",0,"UseProcedureFiles")
 	endif
 	GetFileFolderInfo/Q/Z/P=Igor "Igor Extensions"	
 	if(V_Flag==0)
-		GHW_ListProcFiles(S_Path, 0)
+		GHW_ListProcFiles(S_Path, 0,"UseProcedureFiles")
 	endif
 	GetFileFolderInfo/Q/Z (GHW_GetIgorUserFilesPath()+"Igor Extensions:")
 	if(V_Flag==0)
-		GHW_ListProcFiles(GHW_GetIgorUserFilesPath()+"Igor Extensions:",0)
+		GHW_ListProcFiles(GHW_GetIgorUserFilesPath()+"Igor Extensions:",0,"UseProcedureFiles")
 	endif
 	KillPath/Z tempPath
 end
@@ -663,7 +671,7 @@ end
 static Function GHW_ListUserProcFiles()
 	GetFileFolderInfo/Q/Z/P=Igor "User Procedures"	
 	if(V_Flag==0)
-		GHW_ListProcFiles(S_Path,1)
+		GHW_ListProcFiles(S_Path,1,"UseProcedureFiles")
 	endif
 
 	String path
@@ -672,7 +680,7 @@ static Function GHW_ListUserProcFiles()
 	path += "User Procedures:"						//HR Removed trailing colon though that is not necessary //JIL and HR was wrong, it fails afterwards
 	GetFileFolderInfo/Q/Z (path)	
 	if(V_Flag==0)
-		GHW_ListProcFiles(path,0)	//HR Reuse path variable
+		GHW_ListProcFiles(path,0,"UseProcedureFiles")	//HR Reuse path variable
 	endif
 
 	KillPath/Z tempPath
@@ -681,11 +689,11 @@ end
 static Function GHW_ListIgorProcFiles()
 	GetFileFolderInfo/Q/Z/P=Igor "Igor Procedures"	
 	if(V_Flag==0)
-		GHW_ListProcFiles(S_Path,1 )
+		GHW_ListProcFiles(S_Path,1,"UseProcedureFiles" )
 	endif
 	GetFileFolderInfo/Q/Z GHW_GetIgorUserFilesPath()+"Igor Procedures:"
 	if(V_Flag==0)
-		GHW_ListProcFiles(GHW_GetIgorUserFilesPath()+"Igor Procedures:",0)
+		GHW_ListProcFiles(GHW_GetIgorUserFilesPath()+"Igor Procedures:",0,"UseProcedureFiles")
 	endif
 	KillPath/Z tempPath
 end
@@ -693,11 +701,11 @@ end
 static Function GHW_ListIgorExtensionsFiles()
 	GetFileFolderInfo/Q/Z/P=Igor "Igor Extensions (64-bit)"	
 	if(V_Flag==0)
-		GHW_ListProcFiles(S_Path, 1)
+		GHW_ListProcFiles(S_Path, 1,"UseProcedureFiles")
 	endif
 	GetFileFolderInfo/Q/Z (GHW_GetIgorUserFilesPath()+"Igor Extensions (64-bit):")
 	if(V_Flag==0)
-		GHW_ListProcFiles(GHW_GetIgorUserFilesPath()+"Igor Extensions (64-bit):",0)
+		GHW_ListProcFiles(GHW_GetIgorUserFilesPath()+"Igor Extensions (64-bit):",0,"UseProcedureFiles")
 	endif
 	KillPath/Z tempPath
 end
@@ -718,16 +726,19 @@ End
 
 //**************************************************************** 
 //**************************************************************** 
-static  Function GHW_ListProcFiles(PathStr, resetWaves)
+static  Function GHW_ListProcFiles(PathStr, resetWaves, LocateWhere)
 	string PathStr
 	variable resetWaves
+	string LocateWhere		//name of folder where to locate the files in Procedures
+	//old version needs "UseProcedureFiles"
+	
 	
 	String abortMessage	//HR Used if we have to abort because of an unexpected error
 	
 	string OldDf=GetDataFolder(1)
 	//create location for the results waves...
 	NewDataFolder/O/S root:Packages
-	NewDataFolder/O/S root:Packages:UseProcedureFiles
+	NewDataFolder/O/S $("root:Packages:"+LocateWhere)
 	//if this is top call to the routine we need to wipe out the waves so we remove old junk
 	string CurFncName=GetRTStackInfo(1)
 	string CallingFncName=GetRTStackInfo(2)
@@ -796,7 +807,7 @@ static  Function GHW_ListProcFiles(PathStr, resetWaves)
 				GetFileFolderInfo/Z/Q/P=tempPath S_aliasPath	
 				isItXOP = IamOnMac * stringmatch(S_aliasPath, "*xop*" )
 				if (V_flag==0 && V_isFolder&&!isItXOP)		//this is folder, so all items in the folder are included... Except XOP is folder too... 
-					GHW_ListProcFiles(S_aliasPath, 0)
+					GHW_ListProcFiles(S_aliasPath, 0,LocateWhere)
 				elseif(V_flag==0 && (!V_isFolder || isItXOP))	//this is link to file. Need to include the info on the file...
 					//*************
 					Redimension/N=(numpnts(FileNames)+1) FileNames, PathToFiles,FileVersions
@@ -838,7 +849,7 @@ static  Function GHW_ListProcFiles(PathStr, resetWaves)
 			endif
 		elseif(V_isFolder&&!isItXOP)	
 			//is folder, need to follow into it. Use recursion.
-			GHW_ListProcFiles(PathStr+tempFileName+":", 0)
+			GHW_ListProcFiles(PathStr+tempFileName+":", 0,LocateWhere)
 			//and fix the path back or all will fail...
 			NewPath/Q/O tempPath, PathStr
 			if (V_flag != 0)		//HR Add error checking to prevent infinite loop
@@ -885,8 +896,7 @@ end
 //***********************************
 //**************************************************************** 
 //**************************************************************** 
-//static 
-Function GHW_FindFileVersion(FilenameStr)
+static Function GHW_FindFileVersion(FilenameStr)
 	string FilenameStr
 	
 	Wave/T PathToFIles= root:Packages:UseProcedureFiles:PathToFIles
@@ -906,6 +916,26 @@ Function GHW_FindFileVersion(FilenameStr)
 end
 //**************************************************************** 
 //**************************************************************** 
+static Function GHW_FindFileVersionLocal(FilenameStr)
+	string FilenameStr
+	
+	Wave/T/Z PathToFIles= root:Packages:LocalPackageFolder:PathToFIles
+	if(WaveExists(PathToFIles))
+		Wave/T FileNames=root:Packages:LocalPackageFolder:FileNames
+		Wave FileVersions =root:Packages:LocalPackageFolder:FileVersions
+		variable i, imax=Numpnts(FileNames), versionFound
+		string tempname
+		versionFound=-1
+		For(i=0;i<imax;i+=1)
+			tempname = FileNames[i]
+			if(stringmatch(tempname,FileNameStr))
+				versionFound = FileVersions[i]
+				return versionFound
+			endif
+		endfor
+	endif
+	return -1
+end
 //**************************************************************** 
 //**************************************************************** 
 
@@ -987,6 +1017,7 @@ Function GHW_PrepareListboxGUIData()
 	NVAR DisplayBetaReleases = root:Packages:GHInstaller:DisplayBetaReleases
 	SVAR ReleaseNotes = root:Packages:GHInstaller:ReleaseNotes
 	SVAR LocalFolderPath = root:Packages:GHInstaller:LocalFolderPath
+	NVAR UseLocalFolder = root:Packages:GHInstaller:UseLocalFolder
 	//need to prepare new stuff...
 	variable NumOfReleases=DimSize(ListOfReleases, 0 )
 	variable NumOfPackages=DimSize(ListOfPackages, 0 )
@@ -994,6 +1025,8 @@ Function GHW_PrepareListboxGUIData()
 	make/O/N=(NumOfPackages,4) SelVersionsAndInstall
 	Wave/T VersionsAndInstall
 	VersionsAndInstall = ""
+	Wave SelVersionsAndInstall
+	SelVersionsAndInstall = 0
 	SetDimLabel 1,0,$"Package",VersionsAndInstall
 	SetDimLabel 1,1,$"Local ver.",VersionsAndInstall
 	SetDimLabel 1,2,$"Release ver.",VersionsAndInstall
@@ -1003,24 +1036,42 @@ Function GHW_PrepareListboxGUIData()
 	//column 1 are Local versions, look inside local files
 	//column 2 are remote versions in the release
 	variable i
-	variable TmpVer
+	variable TmpVer, TmpVer2
 	string TempStr, tempKey, tempVerName
 	string LookHere
 	variable WhichReleaseUserWants=NaN
-	For(i=0;i<dimsize(ListOfReleases,0);i+=1)
-		if(StringMatch(ListOfReleases[i][0], SelectedReleaseName ))
-			WhichReleaseUserWants = i
-			break	
-		endif
-	endfor
+	if(StringMatch(SelectedReleaseName, "master")||UseLocalFolder)
+		For(i=0;i<dimsize(ListOfReleases,0);i+=1)
+			if(StringMatch(ListOfReleases[i][0], CurrentReleaseName ))	//fake and use current release name
+				WhichReleaseUserWants = i
+				break	
+			endif
+		endfor
+	
+	else	//normal release chosen
+		For(i=0;i<dimsize(ListOfReleases,0);i+=1)
+			if(StringMatch(ListOfReleases[i][0], SelectedReleaseName ))
+				WhichReleaseUserWants = i
+				break	
+			endif
+		endfor
+	endif
 	ReleaseNotes = ""
-	if(numtype(WhichReleaseUserWants)!=0)
-		//something went wrong here, abort and set values to Nan's 
+	if(StringMatch(SelectedReleaseName, "master")||UseLocalFolder || numtype(WhichReleaseUserWants)!=0)
+		//something went wrong here, abort and set values to Nan's or we are using poorely defined master/local data. 
 		if(StringMatch(SelectedReleaseName, "master" ))
-			ReleaseNotes = "Master = development versions in GH at this moment!"
-			tempVerName = "unknown"
-		else
+			ReleaseNotes = "master = development versions in GH at this moment!"
+			tempVerName = "Developer"
+		elseif(UseLocalFolder)		//local package used
 			ReleaseNotes = "LocalFolder = versions in : "+LocalFolderPath
+			tempVerName = "unknown"
+			GHW_DownloadWarning()
+			SVAR GUIReportActivityForUser=root:Packages:GHInstaller:GUIReportActivityForUser
+			GUIReportActivityForUser = "Reading Configuration of data in local distribution folder"
+			GHW_ListProcFiles(LocalFolderPath, 1, "LocalPackageFolder")
+			DoWIndow/K DownloadWarning
+		else		//unknown package system 
+			ReleaseNotes = "unknown packaged system : "
 			tempVerName = "unknown"
 		endif
 		LookHere = ListOfReleases[0][2]
@@ -1028,9 +1079,16 @@ Function GHW_PrepareListboxGUIData()
 			VersionsAndInstall[i][0]=ListOfPackages[i]
 			TempStr = StringByKey(ListOfPackages[i]+"_VersionCheckFile", LookHere,"=",";")
 			TmpVer = GHW_FindFileVersion(TempStr)
+			TmpVer2 = GHW_FindFileVersionLocal(TempStr)
 			VersionsAndInstall[i][1]=num2str(TmpVer)
-			VersionsAndInstall[i][2]=tempVerName		//would be nice to use this: GHW_FindNonStandardPckgVersionNum but it is ugly process to figure it out. May be later. 
+			if(TmpVer2>0)
+				VersionsAndInstall[i][2]=num2str(TmpVer2)		
+			else
+				VersionsAndInstall[i][2]=tempVerName		
+			endif
 		endfor
+		KillDataFolder /Z root:Packages:LocalPackageFolder:		//this is here to find version  of packages in Loacl distribtuion folder
+																				//delete, not necessary anymore. 
 	else
 		LookHere = ListOfReleases[WhichReleaseUserWants][2]
 		For(i=0;i<numpnts(ListOfPackages);i+=1)
@@ -1047,6 +1105,16 @@ Function GHW_PrepareListboxGUIData()
 end
 //**************************************************************** 
 //**************************************************************** 
+//Function/S GHW_FindNonStPckgVerNum(VersionCheckFile)
+//	string VersionCheckFile
+//
+//	//find VersionCheckFIle in Subfolders of local package in root:Packages:GHInstaller:LocalFolderPath
+//	//and find its version number
+//
+//	
+//	return ""
+//end
+
 //**************************************************************************************************************************************
 //**************************************************************************************************************************************
 Function GHW_Uninstall()
@@ -2811,71 +2879,80 @@ Function GHW_GenerateHelp()
 		DoWindow/F Inst_Help
 	else
 
-		String nb = "Inst_Help"
-		NewNotebook/N=$nb/F=1/V=1/K=1/ENCG={3,1}/W=(525,40.25,1172.25,797)
-		Notebook $nb defaultTab=36
-		Notebook $nb showRuler=1, rulerUnits=1, updating={1, 60}
-		Notebook $nb newRuler=Normal, justification=0, margins={0,0,468}, spacing={0,0,0}, tabs={}, rulerDefaults={"Arial",10,0,(0,0,0)}
-		Notebook $nb newRuler=Header, justification=1, margins={0,0,468}, spacing={0,0,0}, tabs={}, rulerDefaults={"Arial",10,0,(0,0,0)}
-		Notebook $nb ruler=Header, fSize=12, fStyle=1, text="Installer for Irena, Nika, and Indra packages\r"
-		Notebook $nb text="using Github depository.\r"
-		Notebook $nb text="https://github.com/jilavsky/SAXS_IgorCode\r"
-		Notebook $nb ruler=Normal, fSize=-1, fStyle=-1, text="\r"
-		Notebook $nb fStyle=2, text="Jan Ilavsky, November 2016\r"
-		Notebook $nb fStyle=-1, text="\r"
-		Notebook $nb fStyle=1, text="NOTE: ", fStyle=-1, text="Install ONLY packages you really need. Here are hints...\r"
-		Notebook $nb text="Irena ... package for modeling of small-angle scattering data (and reflectivity)\r"
-		Notebook $nb text="Nika ... package for reduction of data from area detectors (pinhole cameras)\r"
-		Notebook $nb text="Indra ... package for data reduction of USAXS data (NOTE: unless you measuered on my instrument or own R"
-		Notebook $nb text="igaku USAXS, this is _NOT_ for you) \r"
-		Notebook $nb text="\r"
-		Notebook $nb fStyle=1, text="Requirements", fStyle=-1, text=": \r"
-		Notebook $nb text="1.   Igor 7 and higher.  \r"
-		Notebook $nb text="2.   Access to the depository or downloaded zip file of a release from this depository\r"
-		Notebook $nb text="3.  This Igor experiment\r"
-		Notebook $nb text="\r"
-		Notebook $nb fStyle=1, text="Use", fStyle=-1, text=": \r"
-		Notebook $nb text="Get the \"Install/Uninstall Package\" Panel of this Igor experiment - if not up, select from \"Instal Packa"
-		Notebook $nb text="ges\" menu the option \"Open GitHub GUI\". \r"
-		Notebook $nb text="Using Igor to download everything : \r"
-		Notebook $nb text="\tUncheck (if checked) \"Use local Folder\"\r"
-		Notebook $nb text="\tPush \"Check packages versions\", Installer will check what is available in depository\r"
-		Notebook $nb text="\tIn Select release release to install in \"Select release to install\". \r"
-		Notebook $nb text="\t\tPick packages to install (or unistall) using checkboxes\r"
-		Notebook $nb text="\t\tPush \"Install/Update\" or \"Unistall\" buttons as needed\r"
-		Notebook $nb text="Manual download :\r"
-		Notebook $nb text="\tDownload release zip file you from Github and unzip on your desktop\r"
-		Notebook $nb text="\tSelect \"Use Local Folder\" in the main GUI\r"
-		Notebook $nb text="\t\tPick packages to install (or unistall) using checkboxes\r"
-		Notebook $nb text="\t\tPush \"Install/Update\" or \"Unistall\" buttons as needed\r"
-		Notebook $nb text="\r"
-		Notebook $nb text="when succesfully finished, you will see \"All done.\" in the history area. Or you will get error message w"
-		Notebook $nb text="ith instructions. \r"
-		Notebook $nb text="\r"
-		Notebook $nb text="After you are done delete the distribution zip file, unzipped folder and the logfile (InstallRecord.txt)"
-		Notebook $nb text=" file from desktop. ", textRGB=(0,1,2), text="If bad things happen, please, send me the log file \""
-		Notebook $nb textRGB=(0,0,0), text="InstallRecord.txt", textRGB=(0,1,2), text="\" from your desktop.\r"
-		Notebook $nb textRGB=(0,0,0), text="\r"
-		Notebook $nb text="note: \tdownload of distribution zip file may take a long time (they are around 50-80Mb). You may want to"
-		Notebook $nb text=" keep it in case you want to reinstall in short future. If proper file is found on desktop, it will be u"
-		Notebook $nb text="sed even in subsequent installations. \r"
-		Notebook $nb text="\tInstall xop files based on bit-version you instend to use (or simply install both). The xop packages ar"
-		Notebook $nb text="e needed for any package.\r"
-		Notebook $nb text="\tAfter any unistallation, you should reinstall packages you intend to use. Another words, since packages"
-		Notebook $nb text=" share libraries, after any uninstallation the other packages are likely unusable. \r"
-		Notebook $nb text="\r"
-		Notebook $nb fStyle=1, text="Beta versions", fStyle=-1
-		Notebook $nb text=": If you need/want latest beta version, check checkbox \"Include Beta releases\" and list in \"Select relea"
-		Notebook $nb text="se to install\" will include Beta versions and \"master\".  Beta versions are designated by depository main"
-		Notebook $nb text="tainer, \"master\" is latest versions now (when installing)  available in the depository. Note, there are "
-		Notebook $nb text="no guarrantees the master will even work!\r"
-		Notebook $nb text="\r"
-		Notebook $nb text="*** ", fSize=11, fStyle=1, textRGB=(52428,1,1)
-		Notebook $nb text="You can always update to the latest version of the packages using this experiment. When I update the on "
-		Notebook $nb text="line depository, this experiment will pick the listing and re-download ALL packages again. To check whic"
-		Notebook $nb text="h version is the last one available on the web, use button \"Check packages versions"
-		Notebook $nb fSize=-1, fStyle=-1, textRGB=(0,1,2), text="\".\r"
-		Notebook $nb text="\r"
-		Notebook $nb text="ilavsky@aps.anl.gov\r"
+	String nb = "Inst_Help"
+	NewNotebook/N=$nb/F=1/V=1/K=1/ENCG={3,1}/W=(475.5,38.75,1002,587.75)
+	Notebook $nb defaultTab=36
+	Notebook $nb showRuler=1, rulerUnits=1, updating={1, 60}
+	Notebook $nb newRuler=Normal, justification=0, margins={0,0,468}, spacing={0,0,0}, tabs={}, rulerDefaults={"Arial",10,0,(0,0,0)}
+	Notebook $nb newRuler=Header, justification=1, margins={0,0,468}, spacing={0,0,0}, tabs={}, rulerDefaults={"Arial",10,0,(0,0,0)}
+	Notebook $nb ruler=Header, fSize=12, fStyle=1, text="Installer for Irena, Nika, and Indra packages\r"
+	Notebook $nb text="using Github depository.\r"
+	Notebook $nb text="https://github.com/jilavsky/SAXS_IgorCode\r"
+	Notebook $nb ruler=Normal, fSize=-1, fStyle=-1, text="\r"
+	Notebook $nb fStyle=2, text="Jan Ilavsky, November 2016\r"
+	Notebook $nb fStyle=-1, text="\r"
+	Notebook $nb fStyle=1, text="NOTE: ", fStyle=-1, text="Install ONLY packages you really need. Here are hints...\r"
+	Notebook $nb text="Irena ... package for modeling of small-angle scattering data (and reflectivity)\r"
+	Notebook $nb text="Nika ... package for reduction of data from area detectors (pinhole cameras) 2D -> 1D\r"
+	Notebook $nb text="Indra ... package for data reduction of USAXS data (NOTE: unless you measured on my instrument or own R"
+	Notebook $nb text="igaku USAXS, this is _NOT_ for you) \r"
+	Notebook $nb text="\r"
+	Notebook $nb fStyle=1, text="Requirements", fStyle=-1, text=": \r"
+	Notebook $nb text="1.   Igor 7 and higher.  \r"
+	Notebook $nb text="2.   Access to the depository or downloaded zip file of a release from this depository ("
+	Notebook $nb font="Arial", fSize=9, fStyle=1, text="https://github.com/jilavsky/SAXS_IgorCode)\r"
+	Notebook $nb font="default", fSize=-1, fStyle=-1, text="\r"
+	Notebook $nb fStyle=1, textRGB=(65535,0,0), text="Use", fStyle=-1, textRGB=(0,0,0), text=": \r"
+	Notebook $nb text="Select from \"", fStyle=2, text="Instal Packages", fStyle=-1, text="\" the menu the option \"", fStyle=2
+	Notebook $nb text="Open GitHub GUI", fStyle=-1, text="\" to get the \"", fStyle=2, text="Install/Uninstall Package"
+	Notebook $nb fStyle=-1, text="\"  \r"
+	Notebook $nb text="Select location of yoru distribution : \r"
+	Notebook $nb text="a/\tYou can use the depository itself (and this program will download zip file and install form it.:\r"
+	Notebook $nb fStyle=3, text="\tIf selected, uncheck the \"Use Local Folder?\" and then push \"Check packages versions\". \r"
+	Notebook $nb fStyle=-1
+	Notebook $nb text="b/\tYou can use unzipped copy of the depository. Dowload a version of packages from Github yourself, unzi"
+	Notebook $nb text="p and place the unzipped folder on the desktop together with this Igor Installer experiment. Run from th"
+	Notebook $nb text="ere. ", fStyle=3, text="\tCheck the \"Use Local Folder?\" and then push \"Check packages versions\"\r"
+	Notebook $nb fStyle=-1, text="\r"
+	Notebook $nb text="Installer will check what is available on your computer and in selected depository. It will offer table "
+	Notebook $nb text="with versions. \r"
+	Notebook $nb text="\tSelect package/releases to install (or unistall)  in \"", fStyle=2, text="Select release to install"
+	Notebook $nb fStyle=-1, text="\". \r"
+	Notebook $nb text="\tPush \"Install/Update\" or \"Unistall\" buttons as needed\r"
+	Notebook $nb text="\r"
+	Notebook $nb text="when succesfully finished, you will get \"All done.\" Alert window and message in the history area. \r"
+	Notebook $nb text="\r"
+	Notebook $nb fStyle=1, text="Beta versions", fStyle=-1
+	Notebook $nb text=": If you need/want latest beta version, check checkbox \"Include Beta releases\" and list in \"Select relea"
+	Notebook $nb text="se to install\" will include Beta versions and \"master\".  Beta versions are designated by depository main"
+	Notebook $nb text="tainer, \"master\" is latest versions now (when installing)  available in the depository. Note, there are "
+	Notebook $nb text="no guarrantees the master will even work, that code is under developement! YOu may want to check with ma"
+	Notebook $nb text="intainer if it is smart to install it. \r"
+	Notebook $nb text="\r"
+	Notebook $nb text="If there are problems, you will get error message with instructions. Please, let me know and"
+	Notebook $nb textRGB=(0,1,2), text=", please, send me the log file \"", textRGB=(0,0,0), text="InstallRecord.txt"
+	Notebook $nb textRGB=(0,1,2)
+	Notebook $nb text="\" from your desktop together with information on yoru computer - Windows version, path to your .../Wavem"
+	Notebook $nb text="etrics/Igor Pro User Files and anythign else special on yrou computer.\r"
+	Notebook $nb textRGB=(0,0,0), text="\r"
+	Notebook $nb text="After succeful installation, delete the distribution zip file, unzipped folder and the logfile (InstallR"
+	Notebook $nb text="ecord.txt) file from desktop.\r"
+	Notebook $nb text="\r"
+	Notebook $nb text="note: \tdownload of distribution zip file may take a long time (they are around 50-80Mb). You may want to"
+	Notebook $nb text=" keep it in case you want to reinstall in short future. If proper zip file is found on desktop, it will "
+	Notebook $nb text="be used even in subsequent installations. \r"
+	Notebook $nb text="\tInstall xop files based on bit-version you instend to use (or simply install both if you have 64-bit ma"
+	Notebook $nb text="chine). The xop packages are needed for any package.\r"
+	Notebook $nb text="\tAfter any unistallation, you should reinstall packages you intend to use. Another words, since packages"
+	Notebook $nb text=" share libraries, after any uninstallation the other packages are likely unusable. \r"
+	Notebook $nb text="\r"
+	Notebook $nb text="*** ", fSize=11, fStyle=1, textRGB=(52428,1,1)
+	Notebook $nb text="You can always update to the latest version of the packages using this experiment. When I update the on "
+	Notebook $nb text="line depository, this experiment will pick the listing and re-download ALL packages again. To check whic"
+	Notebook $nb text="h version is the last one available on the web, use button \"Check packages versions"
+	Notebook $nb fSize=-1, fStyle=-1, textRGB=(0,1,2), text="\".\r"
+	Notebook $nb text="\r"
+	Notebook $nb text="ilavsky@aps.anl.gov\r"
+	Notebook $nb selection={startOfFile,startOfFile}, findText={"",1}
 	endif
 end

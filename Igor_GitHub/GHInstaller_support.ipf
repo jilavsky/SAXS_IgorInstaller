@@ -1,8 +1,9 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-#pragma version = 0.5
+#pragma version = 0.6
 
+//0.6 added instructions for handling the two most common errors seen up to now - donwload error and Mac unzip failed. 
 //0.5 fixed more bugs, better handling of releases by now. 
 //0.4 improved handling of data from local folder, now it can find out the versions of packages
 //0.3 added lots of new functionality and was tested on Windows 10
@@ -1434,6 +1435,13 @@ Function GHW_Install()
 			if (error != 0)
 				DoWIndow/K DownloadWarning
 				GHW_MakeRecordOfProgress("Abort in : "+GetRTStackInfo(3)+"Error Downloading Package zip file "+URLtoGet+" from GitHub.", abortprogress=1 )
+				print "Instructions for fix : "
+				print "Download of distribution zip file : "+ URLtoGet + "   failed."
+				print "This is typically firewall/network problem beyond installer control"
+				print "You need to download this file manually using web browser"
+				print "Place it on Desktop and unzip (double click it) - new folder of same name will be created"
+				print "Now start the installation again, but check \"Use local folder?\" checkbox and point installer to the newly created folder. Install from there."
+				DoAlert /T="Download error, installer will abort." 0, "Download of distribution file failed. See history area for instructions"
 			endif
 			sleep/S 3		//just to flush the data to disk and avoid getting ahead of system with reading file in cache. 
 			//			str= "Done downloading distribution zip file, got : "+num2str(1.0486*strlen(fileBytes)/(1024*1024))+" Mbytes"
@@ -1545,7 +1553,7 @@ Static Function GHW_UnZipOnMac(zipFile,DestFolder,[deleteZip,overWrite,printIt])
 	// create the shell script and execute it
 	String cmd, switches=SelectString(overWrite,""," -o")
 	sprintf cmd, "do shell script \"unzip %s \\\"%s\\\" -d \\\"%s\\\"\"", switches, zipFilePOSIX,DestFolderPOSIX
-	ExecuteScriptText/Z cmd						//returns something only on error
+	ExecuteScriptText/Z/UNQ cmd						//returns something only on error
 	if (V_flag)
 		sprintf str, "\r  ERROR -unzipping,  V_flag =",V_flag
 		GHW_MakeRecordOfProgress(str)
@@ -1553,6 +1561,8 @@ Static Function GHW_UnZipOnMac(zipFile,DestFolder,[deleteZip,overWrite,printIt])
 		GHW_MakeRecordOfProgress(str)
 		sprintf str, "\r  S_value =",ReplaceString("\n",S_value,"\r")
 		GHW_MakeRecordOfProgress(str)
+		DoAlert /T="Error, Instructions how to fix it : " 0, "Automatic unzip of distribution zip file : "+zipFile+" on Desktop failed. This installation will now abort. Unzip the file to Desktop manually. Restart and install from (the just created) local folder." 
+		DoAlert /T="And now - help me!" 0, "I am unable to reproduce this bug. Please send me, ilavsky@aps.anl.gov, the InstallRecord.log file from the desktop. There should be error message there which may help." 
 		return V_flag									// all done, to not consider deleting the zip file
 	elseif (printIt)
 		sprintf str, "unzipping \"%s\"  -->  \"%s\"\r", zipFilePOSIX, DestFolderPOSIX

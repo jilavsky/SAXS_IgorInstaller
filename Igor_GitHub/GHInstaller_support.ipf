@@ -1606,6 +1606,7 @@ Function GHW_UnzipFileOnDesktopWindows(ZipFileName, UnzippedFolderName, deleteSo
 		GHW_CreateZipjsbat()	
 	endif
 	SaveNotebook/O/P=Desktop zipjsbat as "zipjs.bat"
+   sleep/s 5  //wait to flush buffer so the file actually exists... 
 	DoWindow/K zipjsbat
 	//created the zipjs.bat command file which will unzip the file for us, note must kill the internal Notebook
 	//or Igor will held the file and Windows will throw errors
@@ -1620,6 +1621,7 @@ Function GHW_UnzipFileOnDesktopWindows(ZipFileName, UnzippedFolderName, deleteSo
 	cmd +=strToDesktop+stringFromList(ItemsInList(ZipFileName,":")-1, ZipFileName,":")+" -destination "
 	cmd +=strToTemp+"IgorCode -keep yes -force yes"
 	ExecuteScriptText cmd
+   sleep/s 5  //wait to flush buffer so the file actually exists... 
 	//delete the batch file to clean up...
 	DeleteFile /P=Desktop /Z  "zipjs.bat"
 	if(deleteSource)
@@ -1633,19 +1635,18 @@ Function GHW_UnzipFileOnDesktopWindows(ZipFileName, UnzippedFolderName, deleteSo
 	//cmd =strToDesktop+"moveData.bat "+strToDesktop+"IgorCode\\IgorCode\\    "+strToDesktop+"IgorCode"
 	ExecuteScriptText cmd
 	GHW_MakeRecordOfProgress("Windows : Copied unzipped file "+ZipFileName+" from temp folder to folder : "+strToDesktop+UnzippedFolderName)
-	sleep/s 3		//wait for some time to get OS chance to sort things out...
+	sleep/s 5		//wait for some time to get OS chance to sort things out...
 	//check that a file exists so we know the zip worked, and if not, let user unzip manually...
-//	String TestFilePath = strToDesktop+"IgorCode\ftp_IndraPckg"
-//	if(!Inst_FileFolderExists(TestFilePath, file=1))
-//		DoAlert 0, "Uzipping was NOT succesful. On your Desktop find now IgorCode.zip and manually unzip it on the desktop - this will create new folder called IgorCode -  THEN push \"OK\" button so the installation can continue"
-//		if(!Inst_FileFolderExists(TestFilePath, file=1))
-//			NVAR InstallUsingFileByFile = root:Packages:JIL_Installer:InstallUsingFileByFile
-//			InstallUsingFileByFile=1
-//			CheckBox InstallUsingFileByFile win=Inst_MainPanel,  value=1
-//			Abort "Still unable to find the files in the zip file. I have selected file-by-file installation method for you now. Please, run installer again now with this other method. "
-//			return 1
-//		endif
-//	endif
+	String TestFilePath = strToDesktop+UnzippedFolderName
+	GetFileFolderInfo /Q/Z=1 TestFilePath
+	if(V_Flag!=0)
+		DoAlert 0, "Uzipping was NOT succesful, Fix this: On your Desktop is file IgorCode.zip, manually copy the folder from inside of this zip file to desktop. THEN push \"OK\" button so the installation can continue"
+		GetFileFolderInfo /Q/Z=1 TestFilePath
+		if(V_Flag!=0)
+			Abort "Still unable to find the Source folder. Download the distribution zip file manually, uzip, place in same location as this Igor experiment and run Use Local Folder method. Aborting. "
+			return 1
+		endif
+	endif
 	return 0
 End	
 //

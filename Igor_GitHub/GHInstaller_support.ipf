@@ -1,8 +1,9 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-#pragma version = 0.6
+#pragma version = 0.7
 
+//0.7 added check to handle Widows unzip problem. 
 //0.6 added instructions for handling the two most common errors seen up to now - donwload error and Mac unzip failed. 
 //0.5 fixed more bugs, better handling of releases by now. 
 //0.4 improved handling of data from local folder, now it can find out the versions of packages
@@ -1640,9 +1641,11 @@ Function GHW_UnzipFileOnDesktopWindows(ZipFileName, UnzippedFolderName, deleteSo
 	String TestFilePath = strToDesktop+UnzippedFolderName
 	GetFileFolderInfo /Q/Z=1 TestFilePath
 	if(V_Flag!=0)
+		GHW_MakeRecordOfProgress("Windows : Unzipping/copy of file "+ZipFileName+" failed. Asked user to unzip manually.")
 		DoAlert 0, "Uzipping was NOT succesful, Fix this: On your Desktop is file IgorCode.zip, manually copy the folder from inside of this zip file to desktop. THEN push \"OK\" button so the installation can continue"
 		GetFileFolderInfo /Q/Z=1 TestFilePath
 		if(V_Flag!=0)
+			GHW_MakeRecordOfProgress("Windows : Even request for user to manually unzip the "+ZipFileName+" failed. aborting. ")
 			Abort "Still unable to find the Source folder. Download the distribution zip file manually, uzip, place in same location as this Igor experiment and run Use Local Folder method. Aborting. "
 			return 1
 		endif

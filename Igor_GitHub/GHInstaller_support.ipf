@@ -1513,6 +1513,9 @@ Static Function GHW_UnZipOnMac(zipFile,DestFolder,[deleteZip,overWrite,printIt])
 		return 1
 	endif
 
+	//create Path to Desktop
+	NewPath/O Desktop, SpecialDirPath("Desktop", 0, 0, 0 )
+	// check for valid input zip file
 	// check for valid input zip file
 	GetFileFolderInfo/P=Desktop/Q/Z=1 zipFile
 	if (V_Flag || !V_isFile)

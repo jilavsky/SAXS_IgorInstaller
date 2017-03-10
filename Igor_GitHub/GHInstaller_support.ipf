@@ -1,8 +1,9 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-#pragma version = 0.7
+#pragma version = 1.0
 
+//1.0 promoted to 1.0, seems to work. 
 //0.7 added check to handle Widows unzip problem. 
 //0.6 added instructions for handling the two most common errors seen up to now - donwload error and Mac unzip failed. 
 //0.5 fixed more bugs, better handling of releases by now. 

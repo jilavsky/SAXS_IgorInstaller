@@ -1,8 +1,11 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-#pragma version = 1.0
+#pragma version = 1.03
 
+
+//1.03 updated to handle better failed downloads of files from Github.
+//1.02 Fixes to some paths which were causing issues unzipping files 
 //1.0 promoted to 1.0, seems to work. 
 //0.7 added check to handle Widows unzip problem. 
 //0.6 added instructions for handling the two most common errors seen up to now - donwload error and Mac unzip failed. 
@@ -109,7 +112,7 @@
 
 //  ======================================================================================  //
 Function GHW_DwnldConfFileAndScanLocal(DownloadAnything)
-	variable DownloadAnything		//set to 0 to just intialzie locally...
+	variable DownloadAnything		//set to 0 to just intialize locally...
 	//this function scans and provides list of available releases. 
 	if(!DataFolderExists("root:Packages:GHInstaller"))
 		GHW_InitializeInstaller()
@@ -152,11 +155,12 @@ Function GHW_DwnldConfFileAndScanLocal(DownloadAnything)
 			GUIReportActivityForUser = "Downloading Configuration from GitHub"
 			DoUpdate /W=DownloadWarning
 			string ConfigFileURL=ksWebAddressForConfFile+ksNameOfConfFile
-			URLRequest url=ConfigFileURL
+			URLRequest/Z url=ConfigFileURL
 			Variable error = GetRTError(1)
-			if (error != 0)
+			if (error != 0 || V_Flag!=0)
 				DoWIndow/K DownloadWarning
-				GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Error downloading data "+ConfigFileURL, abortProgress=1)
+				GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Error downloading data "+ConfigFileURL, abortProgress=0)
+				Abort "Could not obtain release information from Github. This is usually network issue - check your network connection. Fix if needed and try again. Check history area for any other information."  
 			endif
 			FileContent =  S_serverResponse
 		endif
@@ -1436,14 +1440,19 @@ Function GHW_Install()
 			Variable error = GetRTError(1)
 			if (error != 0)
 				DoWIndow/K DownloadWarning
-				GHW_MakeRecordOfProgress("Abort in : "+GetRTStackInfo(3)+"Error Downloading Package zip file "+URLtoGet+" from GitHub.", abortprogress=1 )
+				GHW_MakeRecordOfProgress("Abort in : "+GetRTStackInfo(3)+"Error Downloading Package zip file "+URLtoGet+" from GitHub.", abortprogress=0)
+				print "**************************************************************************************************************************************"
+				print "**************************************************************************************************************************************"
 				print "Instructions for fix : "
 				print "Download of distribution zip file : "+ URLtoGet + "   failed."
 				print "This is typically firewall/network problem beyond installer control"
 				print "You need to download this file manually using web browser"
-				print "Place it on Desktop and unzip (double click it) - new folder of same name will be created"
+				print "Place it on Desktop and unzip - make sure that a folder with same name as the zip file is created on the desktop"
 				print "Now start the installation again, but check \"Use local folder?\" checkbox and point installer to the newly created folder. Install from there."
+				print "**************************************************************************************************************************************"
+				print "**************************************************************************************************************************************"
 				DoAlert /T="Download error, installer will abort." 0, "Download of distribution file failed. See history area for instructions"
+				abort
 			endif
 			sleep/S 3		//just to flush the data to disk and avoid getting ahead of system with reading file in cache. 
 			//			str= "Done downloading distribution zip file, got : "+num2str(1.0486*strlen(fileBytes)/(1024*1024))+" Mbytes"

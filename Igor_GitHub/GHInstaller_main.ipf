@@ -1,6 +1,6 @@
 #pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.0
+#pragma version = 1.03
 #pragma IgorVersion = 7.00
 
 
@@ -9,6 +9,8 @@ Strconstant ksNameOfPackages ="Irena, Nika, and Indra"
 Strconstant ksWebAddressForConfFile ="https://raw.githubusercontent.com/jilavsky/SAXS_IgorCode/master/"
 Strconstant ksNameOfConfFile ="IgorInstallerConfig.xml"
 
+//1.03 updated to handle better failed downloads of files from Github.
+//1.02 Fixes to some paths which were causing issues unzipping files 
 //1.0 promoted to 1.0, seems to work. 
 //0.6 minor fix of support packages to handle two most common errors. 
 //0.5 ready for beta release. 

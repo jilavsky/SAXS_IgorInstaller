@@ -1,9 +1,9 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
+#pragma version = 1.04
 
-#pragma version = 1.03
 
-
+//1.04 Addes recording of installation (method, packages, success etc) for statistical purposes.
 //1.03 updated to handle better failed downloads of files from Github.
 //1.02 Fixes to some paths which were causing issues unzipping files 
 //1.0 promoted to 1.0, seems to work. 
@@ -1362,6 +1362,8 @@ Function GHW_Install()
 	string/g ToModifyPackagesList=""
 	string/g PackageListsToDownload=""
 	string/g ListOfProcFilesToClose=""
+	string/g ListOfPackagesToInstall="Failure getting distribution data"
+	SVAR 		ListOfPackagesToInstall
 	variable i, j
 	variable WhichReleaseUserWants=NaN
 	string LookHere
@@ -1376,9 +1378,11 @@ Function GHW_Install()
 		endif
 		//at this moment we should have a folder called $(InternalDataName) on the desktop with the rigth ditribution files and can install them as user wants. 
 		//install packages as user requested	
-		LookHere = ListOfReleases[0][2]		
+		LookHere = ListOfReleases[0][2]	
+		ListOfPackagesToInstall =""	
 		For(i=0;i<dimsize(SelVersionsAndInstall,0);i+=1)
 			if(SelVersionsAndInstall[i][3]>32)
+				ListOfPackagesToInstall += VersionsAndInstall[i][0]+"_"+VersionsAndInstall[i][2]+","
 				ToModifyPackagesList+=VersionsAndInstall[i][0]+";"
 				PackageListsToDownload+=StringByKey(VersionsAndInstall[i][0]+"_PackageList", LookHere  , "=", ";")+";"
 			endif
@@ -1389,6 +1393,7 @@ Function GHW_Install()
 			GHW_InstallPackage(LocalFolderPath,StringFromList(i,PackageListsToDownload))
 		endfor
 		GHW_MakeRecordOfProgress("Installation from local folder "+LocalFolderPath+" finished. All done. " )
+		GHW_SubmitRecordToWeb(ListOfPackagesToInstall, "Local Folder", "success")
 		DoAlert /T="Installation succesfully finished" 0, "Requested Installation finished succesfully. Delete the InstallLog.txt, if you do not need it anymore." 
 	else		//dowload folder from remote location...
 		For(i=0;i<dimsize(ListOfReleases,0);i+=1)
@@ -1489,8 +1494,10 @@ Function GHW_Install()
 		DoWIndow/K DownloadWarning
 		//at this moment we should have a folder called $(InternalDataName) on the desktop with the rigth ditribution files and can install them as user wants. 
 		//install packages as user requested	
+		ListOfPackagesToInstall =""	
 		For(i=0;i<dimsize(SelVersionsAndInstall,0);i+=1)
 			if(SelVersionsAndInstall[i][3]>32)
+				ListOfPackagesToInstall += VersionsAndInstall[i][0]+"_"+VersionsAndInstall[i][2]+","
 				ToModifyPackagesList+=VersionsAndInstall[i][0]+";"
 				PackageListsToDownload+=StringByKey(VersionsAndInstall[i][0]+"_PackageList", LookHere  , "=", ";")+";"
 			endif
@@ -1501,9 +1508,39 @@ Function GHW_Install()
 			GHW_InstallPackage(DesktopFldr+InternalDataName,StringFromList(i,PackageListsToDownload))
 		endfor
 		GHW_MakeRecordOfProgress("Installation from local folder "+LocalFolderPath+" finished. All done. " )
+		GHW_SubmitRecordToWeb(ListOfPackagesToInstall, SelectedReleaseName, "success")
 		DoAlert /T="Installation succesfully finished" 0, "Requested Installation finished succesfully. Delete the distribution zip file, folder with unzipped data and InstallLog.txt, if you do not need them anymore." 
 	endif	
 	SetDataFolder saveDFR					// Restore current data folder
+end
+//**************************************************************************************************************************************
+//**************************************************************************************************************************************
+//PackageListsToDownload contains WhichPackages
+//SelectedReleaseName contains InstallMethodType if "Local Folder" or Master, 
+Function GHW_SubmitRecordToWeb(WhichPackages, InstallMethodType, ResultMessage)
+	string WhichPackages, ResultMessage, InstallMethodType
+
+	string Accesskey="IrenaNikaInstallations"
+	string PackagesInstalled=WhichPackages
+	string IgorVersionStr=IgorInfo(2)+" "+num2str(IgorVersion())
+	string DataPath=SpecialDirPath("Igor Pro User Files", 0, 0, 0 )
+	string DownloadType=InstallMethodType
+	string Success=ResultMessage
+	
+	string pathtourl=""
+	pathtourl = strConstRecordwwwAddress
+	pathtourl += "key="+Accesskey+"&"
+	pathtourl += "packages="+PackagesInstalled+"&"
+	pathtourl += "igor_version="+IgorVersionStr+"&"
+	pathtourl += "path="+DataPath+"&"
+	pathtourl += "install_method="+DownloadType+"&"
+	pathtourl += "status="+Success	
+	pathtourl = ReplaceString(" ", pathtourl, "%20")
+	//print pathtourl	
+	URLRequest /TIME=2/Z url=pathtourl
+	//print V_Flag
+	//print V_responseCode
+	//print S_serverResponse
 end
 //**************************************************************************************************************************************
 //**************************************************************************************************************************************
@@ -2599,7 +2636,11 @@ Function GHW_MakeRecordOfProgress(MessageToRecord, [header, abortProgress])
 	endif
 	fprintf FileNum, MessageToRecord+"\r"
 	Close FileNum
-	if(abortProgress)
+	if(abortProgress)	
+		SVAR PackageListsToDownload
+		SVAR SelectedReleaseName
+		SVAR ListOfPackagesToInstall
+		GHW_SubmitRecordToWeb(ListOfPackagesToInstall, SelectedReleaseName, MessageToRecord)
 		Abort "Installation aborted due to error.\rPlease send the InstallRecord.log file from your Desktop to ilavsky@aps.anl.gov for analysis of the failure reason and debugging. "
 	endif
 	return 0

@@ -1,6 +1,6 @@
 #pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.04
+#pragma version = 1.05
 #pragma IgorVersion = 7.00
 
 
@@ -9,7 +9,9 @@ Strconstant ksNameOfPackages ="Irena, Nika, and Indra"
 Strconstant ksWebAddressForConfFile ="https://raw.githubusercontent.com/jilavsky/SAXS_IgorCode/master/"
 Strconstant ksNameOfConfFile ="IgorInstallerConfig.xml"
 strconstant strConstRecordwwwAddress="http://usaxs.xray.aps.anl.gov/staff/ilavsky/IrenaNikaRecords/InstallRecord.php?"
+Strconstant NameOfInstallMessageFile ="InstallMessage.ifn"
 
+//1.05 adds Message from installer, promoted version requirement to 7.05  
 //1.04 Addes recording of installation (method, packages, success etc) for statistical purposes.
 //1.03 updated to handle better failed downloads of files from Github.
 //1.02 Fixes to some paths which were causing issues unzipping files 
@@ -32,8 +34,8 @@ end
 //**************************************************************** 
 //**************************************************************** 
 Function GHW_Start()
-	if (str2num(stringByKey("IGORVERS",IgorInfo(0)))<7.0)
-			DoAlert /T="Important message :"  0, "This installer will work ONLY with Igor 7. Please, update your Igor before running this installer!"  
+	if (str2num(stringByKey("IGORVERS",IgorInfo(0)))<7.00)
+			DoAlert /T="Important message :"  0, "This installer will work ONLY with Igor 7.00. Please, update your Igor before running this installer!"  
 			BrowseURL "http://www.wavemetrics.com/support/versions.htm"
 	else
 		DoWIndow GH_MainPanel
@@ -45,9 +47,33 @@ Function GHW_Start()
 		GHW_PrepareGUIData()
 		GHW_CreateMainpanel()
 		GHW_GenerateHelp()
+		GHW_GetAndDisplayUpdateMessage()
 	endif
 
 end
+//**************************************************************** 
+//**************************************************************** 
+//**************************************************************** 
+Function GHW_GetAndDisplayUpdateMessage()
+		//checks for update message and if available, gets it and presents to user. 
+		
+	string FileContent
+	string ConfigFileURL=ksWebAddressForConfFile+NameOfInstallMessageFile
+	URLRequest/Z/TIME=2 url=ConfigFileURL
+	if (V_Flag != 0)
+		print "Could not get Install message file from server."
+		return 0
+	endif
+	FileContent =  S_serverResponse
+	variable refNum
+	NewPath/O/C/Q TempUserUpdateMessage, SpecialDirPath("Temporary",0,0,0)
+	Open/P=TempUserUpdateMessage  refNum as NameOfInstallMessageFile
+	FBinWrite refNum, FileContent
+	Close refNum
+	OpenNotebook/k=1/N=MessageFromAuthor/P=TempUserUpdateMessage/Z NameOfInstallMessageFile
+   return 1
+end
+
 //**************************************************************** 
 //**************************************************************** 
 //**************************************************************** 

@@ -1,8 +1,9 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.04
+#pragma version = 1.05
 
 
+//1.05 minor fixes
 //1.04 Addes recording of installation (method, packages, success etc) for statistical purposes.
 //1.03 updated to handle better failed downloads of files from Github.
 //1.02 Fixes to some paths which were causing issues unzipping files 
@@ -2957,7 +2958,7 @@ Function GHW_GenerateHelp()
 	Notebook $nb text="using Github depository.\r"
 	Notebook $nb text="https://github.com/jilavsky/SAXS_IgorCode\r"
 	Notebook $nb ruler=Normal, fSize=-1, fStyle=-1, text="\r"
-	Notebook $nb fStyle=2, text="Jan Ilavsky, November 2016\r"
+	Notebook $nb fStyle=2, text="Jan Ilavsky, November 2017\r"
 	Notebook $nb fStyle=-1, text="\r"
 	Notebook $nb fStyle=1, text="NOTE: ", fStyle=-1, text="Install ONLY packages you really need. Here are hints...\r"
 	Notebook $nb text="Irena ... package for modeling of small-angle scattering data (and reflectivity)\r"
@@ -2966,7 +2967,7 @@ Function GHW_GenerateHelp()
 	Notebook $nb text="igaku USAXS, this is _NOT_ for you) \r"
 	Notebook $nb text="\r"
 	Notebook $nb fStyle=1, text="Requirements", fStyle=-1, text=": \r"
-	Notebook $nb text="1.   Igor 7 and higher.  \r"
+	Notebook $nb text="1.   Igor 7.05 and higher.  \r"
 	Notebook $nb text="2.   Access to the depository or downloaded zip file of a release from this depository ("
 	Notebook $nb font="Arial", fSize=9, fStyle=1, text="https://github.com/jilavsky/SAXS_IgorCode)\r"
 	Notebook $nb font="default", fSize=-1, fStyle=-1, text="\r"

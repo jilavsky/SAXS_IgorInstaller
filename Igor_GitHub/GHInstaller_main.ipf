@@ -1,16 +1,17 @@
 #pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.05
-#pragma IgorVersion = 7.00
+#pragma version = 1.06
+#pragma IgorVersion = 7.05
 
 
 
 Strconstant ksNameOfPackages ="Irena, Nika, and Indra"
 Strconstant ksWebAddressForConfFile ="https://raw.githubusercontent.com/jilavsky/SAXS_IgorCode/master/"
 Strconstant ksNameOfConfFile ="IgorInstallerConfig.xml"
-strconstant strConstRecordwwwAddress="http://usaxs.xray.aps.anl.gov/staff/ilavsky/IrenaNikaRecords/InstallRecord.php?"
+strconstant strConstRecordwwwAddress="https://usaxs.xray.aps.anl.gov/staff/jan-ilavsky/IrenaNikaRecords/installrecord.php?"
 Strconstant NameOfInstallMessageFile ="InstallMessage.ifn"
 
+//1.05 fix location of new php file, increase Igor version need - rest of the code needs 7.05 or higher anyway. 
 //1.05 adds Message from installer, promoted version requirement to 7.05  
 //1.04 Addes recording of installation (method, packages, success etc) for statistical purposes.
 //1.03 updated to handle better failed downloads of files from Github.

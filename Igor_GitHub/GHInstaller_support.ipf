@@ -1040,6 +1040,10 @@ Function GHW_PrepareListboxGUIData()
 	SetDimLabel 1,2,$"Release ver.",VersionsAndInstall
 	SetDimLabel 1,3,$"Select?",VersionsAndInstall
 	SelVersionsAndInstall[][3] =32
+	//avoid crash at the start when list of releases is empty
+	if(dimSize(ListOfReleases,0)<1)
+		return 0
+	endif
 	//find out versions... 
 	//column 1 are Local versions, look inside local files
 	//column 2 are remote versions in the release

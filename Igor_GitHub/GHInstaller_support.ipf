@@ -1,8 +1,10 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.05
+#pragma version = 1.09
 
 
+//1.09 added for Windows 8+ uznip method using PowerShell per: https://www.wavemetrics.com/code-snippet/expand-zip-archive-platform-agnostic
+//1.08 added better messaging to user for failed installations
 //1.05 minor fixes
 //1.04 Addes recording of installation (method, packages, success etc) for statistical purposes.
 //1.03 updated to handle better failed downloads of files from Github.
@@ -161,6 +163,7 @@ Function GHW_DwnldConfFileAndScanLocal(DownloadAnything)
 			if (error != 0 || V_Flag!=0)
 				DoWIndow/K DownloadWarning
 				GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Error downloading data "+ConfigFileURL, abortProgress=0)
+				BrowseURL "https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems"
 				Abort "Could not obtain release information from Github. This is usually network issue - check your network connection. Fix if needed and try again. Check history area for any other information."  
 			endif
 			FileContent =  S_serverResponse
@@ -172,6 +175,7 @@ Function GHW_DwnldConfFileAndScanLocal(DownloadAnything)
 		if(strlen(InstallerText)<10)	//no real content
 			DoWIndow/K DownloadWarning
 			SetDataFolder saveDFR					// Restore current data folder
+			BrowseURL "https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems"
 			GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+" Installer text too short", abortProgress=1)
 		endif
 		//list all Installable files here so we have cache of them.
@@ -781,6 +785,7 @@ static  Function GHW_ListProcFiles(PathStr, resetWaves, LocateWhere)
 		sprintf abortMessage, "Unexpected error creating a symbolic path pointing to \"%s\"", PathStr
 		str= abortMessage	// To make debugging easier
 		//Inst_Append2Log(str,0)
+		BrowseURL "https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems"
 		Abort abortMessage
 	endif
 
@@ -852,7 +857,6 @@ static  Function GHW_ListProcFiles(PathStr, resetWaves, LocateWhere)
 			if (V_flag != 0)		//HR Add error checking to prevent infinite loop
 				sprintf abortMessage, "Unexpected error creating a symbolic path pointing to \"%s\"", PathStr
 				str= abortMessage	// To make debugging easier
-				//Inst_Append2Log(str,0)
 				Abort abortMessage
 			endif
 		elseif(V_isFolder&&!isItXOP)	
@@ -863,7 +867,6 @@ static  Function GHW_ListProcFiles(PathStr, resetWaves, LocateWhere)
 			if (V_flag != 0)		//HR Add error checking to prevent infinite loop
 				sprintf abortMessage, "Unexpected error creating a symbolic path pointing to \"%s\"", PathStr
 				str= abortMessage	// To make debugging easier
-				//Inst_Append2Log(str,0)
 				Abort abortMessage
 			endif
 		elseif(V_isFile||isItXOP)
@@ -1070,7 +1073,6 @@ Function GHW_PrepareListboxGUIData()
 	endif
 	ReleaseNotes = ""
 	if(StringMatch(SelectedReleaseName, "master")||UseLocalFolder || numtype(WhichReleaseUserWants)!=0)
-		//something went wrong here, abort and set values to Nan's or we are using poorely defined master/local data. 
 		if(StringMatch(SelectedReleaseName, "master" ))
 			ReleaseNotes = "master = development versions in GH at this moment!"
 			tempVerName = "Developer"
@@ -1292,64 +1294,6 @@ Function GHW_Uninstall()
 end
 //**************************************************************************************************************************************
 //**************************************************************************************************************************************
-
-
-//Function GHW_RemoveListOfFiles()
-//	DFREF saveDFR=GetDataFolderDFR()		// Get reference to current data folder
-//	SetDataFOlder root:Packages:GHInstaller
-// 
-//	Wave/T ListOfReleases = root:Packages:GHInstaller:ListOfReleases
-//	Wave SelVersionsAndInstall = root:Packages:GHInstaller:SelVersionsAndInstall
-//	Wave/T VersionsAndInstall = root:Packages:GHInstaller:VersionsAndInstall
-//	SVAR SelectedReleaseName = root:Packages:GHInstaller:SelectedReleaseName
-//	SVAR GUIReportActivityForUser=root:Packages:GHInstaller:GUIReportActivityForUser
-//	SVAR ToModifyPackagesList=root:Packages:GHInstaller:ToModifyPackagesList
-//	SVAR PackageListsToDownload=root:Packages:GHInstaller:PackageListsToDownload
-//	SVAR ListOfProcFilesToClose=root:Packages:GHInstaller:ListOfProcFilesToClose
-//	Wave/T FileNames = root:Packages:UseProcedureFiles:FileNames
-//	Wave FileVersions = root:Packages:UseProcedureFiles:FileVersions
-//	Wave/T PathToFiles = root:Packages:UseProcedureFiles:PathToFiles
-//	variable i, j, FoundLoc
-//	variable IamOnMac, isItMacXOP
-//	if(stringmatch(IgorInfo(2),"Windows"))
-//		IamOnMac=0
-//	else
-//		IamOnMac=1
-//	endif
-//	string tempStr, UserDataPath
-//	//UserDataPath = SpecialDirPath("Igor Pro User Files", 0, 0, 0 )
-//	For(i=0;i<ItemsInList(ToModifyPackagesList);i+=1)
-//		SVAR PackgList=$(StringFromList(i,PackageListsToDownload)+"Pkcg")
-//		For(j=0;j<ItemsInList(PackgList , ";");j+=1)
-//			tempStr = StringFromList(j, PackgList , ";")
-//			tempStr = StringFromList(ItemsInList(tempStr, "/")-1, tempStr , "/")
-//			FindValue /TEXT=tempStr /TXOP=4 /Z FileNames
-//			if(V_value>=0)
-//				tempStr = PathToFiles[V_value]+ReplaceString("/", tempStr, ":")
-//				GetFileFolderInfo/Z/Q tempStr
-//				isItMacXOP = IamOnMac * stringmatch(tempStr, "*xop*" )
-//				if(V_isFile)
-//					print "Would delete file:"+tempStr
-//					//	DeleteFile/Z tempStr
-//					// if(V_Flag!=0)
-//						//rename original file, but first delete any such version which may exist
-//					//endif
-//				elseif(V_isFolder)
-//					print "Would delete folder/xop"
-//					//	DeleteFolder/Z tempStr
-//					// if(V_Flag!=0)
-//						//rename original file, but first delete any such version which may exist
-//					//endif
-//				//elseif(isItMacXOP)
-//					//print would deal with MacXOP (for installation purposes, here needs to be unzipped... 
-//				endif	
-//			endif
-//		endfor
-//		
-//	endfor
-//	
-//	SetDataFolder saveDFR					// Restore current data folder
-//end
 //**************************************************************************************************************************************
 //**************************************************************************************************************************************
 
@@ -1462,6 +1406,7 @@ Function GHW_Install()
 				print "**************************************************************************************************************************************"
 				print "**************************************************************************************************************************************"
 				DoAlert /T="Download error, installer will abort." 0, "Download of distribution file failed. See history area for instructions"
+				BrowseURL "https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems"
 				abort
 			endif
 			sleep/S 3		//just to flush the data to disk and avoid getting ahead of system with reading file in cache. 
@@ -1481,12 +1426,6 @@ Function GHW_Install()
 			GUIReportActivityForUser = "Unzipping "+InternalDataName+".zip file." 
 			GHW_MakeRecordOfProgress("Windows : Unzipping the file "+InternalDataName+".zip file. " )	
 			GHW_UnzipFileOnDesktopWindows(InternalDataName+".zip", InternalDataName, 0)
-			//DoAlert/T="User action needed! Zip file is on the Desktop. " 1, "Please, copy the folder "+InternalDataName+" from dowloaded zip file "+(InternalDataName+".zip")+" on your Desktop and push Yes. No will cancel the process and stop. Use Alt-Tab/Cmd-Tab to move between Explorer/Finder and Igor, as needed. " 
-			//if(V_Flag==1)
-				//should have the folder where needed
-			//else
-			//	GHW_MakeRecordOfProgress("User cancelled in unzipping of "+InternalDataName+" zip file. Aborting.", abortprogress=1 )
-			//endif
 		else
 			//unzip on Mac using script. 
 			GUIReportActivityForUser = "Unzipping "+InternalDataName+".zip file." 
@@ -1648,51 +1587,65 @@ Function GHW_UnzipFileOnDesktopWindows(ZipFileName, UnzippedFolderName, deleteSo
 
 	//create Path to Desktop
 	NewPath/O Desktop, SpecialDirPath("Desktop", 0, 0, 0 )
-	//NewPath/O TempFolder, SpecialDirPath("Temporary", 0, 0, 0 )
+	string strToDesktop = SpecialDirPath("Desktop", 0, 1, 0 )
+	string strToTemp = SpecialDirPath("Temporary", 0, 1, 0 )
 	//check that the file exists
 	GetFileFolderInfo /P=Desktop /Q/Z=1 ZipFileName
 	if(V_Flag!=0)
+		BrowseURL "https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems"
+		GHW_MakeRecordOfProgress("Zip file not found on Desktop" )	
 		Abort "Zip file not found on Desktop"
 	endif	
 
-	//create the command file on the desktop, this is Zipjs.bat per 
-	//from <a href="https://github.com/npocmaka/batch.scripts/blob/master/hybrids/jscript/zipjs.bat" title="https://github.com/npocmaka/batch.scripts/blob/master/hybrids/jscript/zipjs.bat" rel="nofollow">https://github.com/npocmaka/batch.scripts/blob/master/hybrids/jscript/zi...</a>	
-	DoWindow zipjsbat
-	if(V_Flag==0)
-		GHW_CreateZipjsbat()	
+	//for WIndows 8 and higher, use new method using PowerShell
+  variable WinVersion=str2num(StringByKey("OS", igorinfo(3))[7,12])		//this extracts simply number from OS key, should be 7, 8, 10 for now. 
+  variable success
+  if (WinVersion>7.99)				//Powershell is available only on Windows 8+
+		GHW_MakeRecordOfProgress("Windows : Unzipping the file "+ZipFileName+" using Windows 8+ method. " )	
+		success = GHW_unzipArchive(strToDesktop+ZipFileName, strToDesktop)
+		if(success<0.5)		//0 means code failed. 
+			GHW_MakeRecordOfProgress("Windows : FAILED Unzipping the file "+ZipFileName+" using Windows 8+ method. " )	
+			Abort "FAILED Unzipping the file "+ZipFileName+" using Windows 8+ method."
+		endif
+	else
+		//create the command file on the desktop, this is Zipjs.bat per 
+		//from <a href="https://github.com/npocmaka/batch.scripts/blob/master/hybrids/jscript/zipjs.bat" title="https://github.com/npocmaka/batch.scripts/blob/master/hybrids/jscript/zipjs.bat" rel="nofollow">https://github.com/npocmaka/batch.scripts/blob/master/hybrids/jscript/zi...</a>	
+		DoWindow zipjsbat
+		if(V_Flag==0)
+			GHW_CreateZipjsbat()	
+		endif
+		SaveNotebook/O/P=Desktop zipjsbat as "zipjs.bat"
+	   sleep/s 5  //wait to flush buffer so the file actually exists... 
+		DoWindow/K zipjsbat
+		//created the zipjs.bat command file which will unzip the file for us, note must kill the internal Notebook
+		//or Igor will held the file and Windows will throw errors
+		//now create cmd in line with
+		//             zipjs.bat unzip -source C:\myDir\myZip.zip -destination C:\MyDir -keep no -force no
+		// the destination folder is created by the script. 
+		// -keep yes will keep the content of the zip file, -force yes will overwrite the tempfolder for the data if exists
+		// be careful, -force yes will wipe out the destination, if exists, so make sure the data are directed to non-existing folder.
+		string cmd = strToDesktop+"zipjs.bat unzip -source "
+		cmd +=strToDesktop+stringFromList(ItemsInList(ZipFileName,":")-1, ZipFileName,":")+" -destination "
+		cmd +=strToTemp+"IgorCode -keep yes -force yes"
+		ExecuteScriptText cmd
+	   sleep/s 5  //wait to flush buffer so the file actually exists... 
+		//delete the batch file to clean up...
+		DeleteFile /P=Desktop /Z  "zipjs.bat"
+		if(deleteSource)
+			DeleteFile /P=Desktop /Z  ZipFileName		
+		endif
+		GHW_MakeRecordOfProgress("Windows : Unzipped file "+ZipFileName+" to temp folder")
+		//now the folder IgorCode is in the Desktop/ZipFileTempFldr
+		//and we need it in Desktop... 
+		//NewPath /C /O/Q/Z tempForIgorCode, strToDesktop+"IgorCode"
+		cmd ="Xcopy  "+strToTemp+"IgorCode\\"+UnzippedFolderName+"\\*    "+strToDesktop+UnzippedFolderName+"\\ /s /y"
+		//cmd =strToDesktop+"moveData.bat "+strToDesktop+"IgorCode\\IgorCode\\    "+strToDesktop+"IgorCode"
+		ExecuteScriptText cmd
+		GHW_MakeRecordOfProgress("Windows : Copied unzipped file "+ZipFileName+" from temp folder to folder : "+strToDesktop+UnzippedFolderName)
+		sleep/s 5		//wait for some time to get OS chance to sort things out...
+		//check that a file exists so we know the zip worked, and if not, let user unzip manually...
 	endif
-	SaveNotebook/O/P=Desktop zipjsbat as "zipjs.bat"
-   sleep/s 5  //wait to flush buffer so the file actually exists... 
-	DoWindow/K zipjsbat
-	//created the zipjs.bat command file which will unzip the file for us, note must kill the internal Notebook
-	//or Igor will held the file and Windows will throw errors
-	//now create cmd in line with
-	//             zipjs.bat unzip -source C:\myDir\myZip.zip -destination C:\MyDir -keep no -force no
-	// the destination folder is created by the script. 
-	// -keep yes will keep the content of the zip file, -force yes will overwrite the tempfolder for the data if exists
-	// be careful, -force yes will wipe out the destination, if exists, so make sure the data are directed to non-existing folder.
-	string strToDesktop = SpecialDirPath("Desktop", 0, 1, 0 )
-	string strToTemp = SpecialDirPath("Temporary", 0, 1, 0 )
-	string cmd = strToDesktop+"zipjs.bat unzip -source "
-	cmd +=strToDesktop+stringFromList(ItemsInList(ZipFileName,":")-1, ZipFileName,":")+" -destination "
-	cmd +=strToTemp+"IgorCode -keep yes -force yes"
-	ExecuteScriptText cmd
-   sleep/s 5  //wait to flush buffer so the file actually exists... 
-	//delete the batch file to clean up...
-	DeleteFile /P=Desktop /Z  "zipjs.bat"
-	if(deleteSource)
-		DeleteFile /P=Desktop /Z  ZipFileName		
-	endif
-	GHW_MakeRecordOfProgress("Windows : Unzipped file "+ZipFileName+" to temp folder")
-	//now the folder IgorCode is in the Desktop/ZipFileTempFldr
-	//and we need it in Desktop... 
-	//NewPath /C /O/Q/Z tempForIgorCode, strToDesktop+"IgorCode"
-	cmd ="Xcopy  "+strToTemp+"IgorCode\\"+UnzippedFolderName+"\\*    "+strToDesktop+UnzippedFolderName+"\\ /s /y"
-	//cmd =strToDesktop+"moveData.bat "+strToDesktop+"IgorCode\\IgorCode\\    "+strToDesktop+"IgorCode"
-	ExecuteScriptText cmd
-	GHW_MakeRecordOfProgress("Windows : Copied unzipped file "+ZipFileName+" from temp folder to folder : "+strToDesktop+UnzippedFolderName)
-	sleep/s 5		//wait for some time to get OS chance to sort things out...
-	//check that a file exists so we know the zip worked, and if not, let user unzip manually...
+
 	String TestFilePath = strToDesktop+UnzippedFolderName
 	GetFileFolderInfo /Q/Z=1 TestFilePath
 	if(V_Flag!=0)
@@ -1701,6 +1654,7 @@ Function GHW_UnzipFileOnDesktopWindows(ZipFileName, UnzippedFolderName, deleteSo
 		GetFileFolderInfo /Q/Z=1 TestFilePath
 		if(V_Flag!=0)
 			GHW_MakeRecordOfProgress("Windows : Even request for user to manually unzip the "+ZipFileName+" failed. aborting. ")
+			BrowseURL "https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems"
 			Abort "Still unable to find the Source folder. Download the distribution zip file manually, uzip, place in same location as this Igor experiment and run Use Local Folder method. Aborting. "
 			return 1
 		endif
@@ -2646,6 +2600,7 @@ Function GHW_MakeRecordOfProgress(MessageToRecord, [header, abortProgress])
 		SVAR SelectedReleaseName
 		SVAR ListOfPackagesToInstall
 		GHW_SubmitRecordToWeb(ListOfPackagesToInstall, SelectedReleaseName, MessageToRecord)
+		BrowseURL "https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems"
 		Abort "Installation aborted due to error.\rPlease send the InstallRecord.log file from your Desktop to ilavsky@aps.anl.gov for analysis of the failure reason and debugging. "
 	endif
 	return 0
@@ -2666,6 +2621,7 @@ Function GHW_InstallPackage(PathToLocalData,PackageListxml)
 	//Open/R/Z fileID as PathToLocalData+PackageListxml
 	GetFileFolderInfo/Z/Q PathToLocalData+PackageListxml
 	if(V_flag!=0)
+		BrowseURL "https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems"
 		GHW_MakeRecordOfProgress("Abort in : "+GetRTStackInfo(3)+" - xml configuration file was not found",abortProgress=1 ) 
 	endif
 	FileContent = PadString(FileContent, V_logEOF, 0x20 )
@@ -2677,6 +2633,7 @@ Function GHW_InstallPackage(PathToLocalData,PackageListxml)
 	string InstallerText=GHI_XMLtagContents("PackageContent",FileContent)	//if nothing, wrong format
 	if(strlen(InstallerText)<10)	//no real content
 		SetDataFolder saveDFR					// Restore current data folder
+		BrowseURL "https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems"
 		GHW_MakeRecordOfProgress("Abort in : "+GetRTStackInfo(3)+" - Nothing found in a file "+PathToLocalData+PackageListxml,abortProgress=1 ) 
 	endif
 	//known keywords: xopLinks for xop from Wavemetrics -> link to Igor Extensions (64-bit)
@@ -2931,6 +2888,7 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 		//note, this cannot handle links, separate code needed for making links. 
 		GHW_MakeRecordOfProgress( "Copied " + FileToCopy + " from "+PathToLocalData+PackgListFilePaths)
 	else
+		BrowseURL "https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems"
 		GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"ERROR: Source File not found : " +FileToCopy, abortprogress=1)
 	endif
 	return 1
@@ -2953,8 +2911,8 @@ Function GHW_GenerateHelp()
 	else
 
 	String nb = "Inst_Help"
-	NewNotebook/N=$nb/F=1/V=1/K=1/ENCG={3,1}/W=(475.5,38.75,1002,587.75)
-	Notebook $nb defaultTab=36
+	NewNotebook/N=$nb/F=1/V=1/K=1/ENCG={3,1}/W=(311.25,40.25,882.75,792.5)
+	Notebook $nb defaultTab=36, magnification=100
 	Notebook $nb showRuler=1, rulerUnits=1, updating={1, 60}
 	Notebook $nb newRuler=Normal, justification=0, margins={0,0,468}, spacing={0,0,0}, tabs={}, rulerDefaults={"Arial",10,0,(0,0,0)}
 	Notebook $nb newRuler=Header, justification=1, margins={0,0,468}, spacing={0,0,0}, tabs={}, rulerDefaults={"Arial",10,0,(0,0,0)}
@@ -2962,30 +2920,41 @@ Function GHW_GenerateHelp()
 	Notebook $nb text="using Github depository.\r"
 	Notebook $nb text="https://github.com/jilavsky/SAXS_IgorCode\r"
 	Notebook $nb ruler=Normal, fSize=-1, fStyle=-1, text="\r"
-	Notebook $nb fStyle=2, text="Jan Ilavsky, November 2017\r"
+	Notebook $nb fStyle=2, text="Jan Ilavsky, September 2019\r"
 	Notebook $nb fStyle=-1, text="\r"
 	Notebook $nb fStyle=1, text="NOTE: ", fStyle=-1, text="Install ONLY packages you really need. Here are hints...\r"
 	Notebook $nb text="Irena ... package for modeling of small-angle scattering data (and reflectivity)\r"
 	Notebook $nb text="Nika ... package for reduction of data from area detectors (pinhole cameras) 2D -> 1D\r"
-	Notebook $nb text="Indra ... package for data reduction of USAXS data (NOTE: unless you measured on my instrument or own R"
-	Notebook $nb text="igaku USAXS, this is _NOT_ for you) \r"
+	Notebook $nb text="Indra ... package for data reduction of USAXS data (NOTE: unless you measured on my instrument or own Ri"
+	Notebook $nb text="gaku USAXS, this is _NOT_ for you) \r"
+	Notebook $nb text="\r"
+	Notebook $nb fStyle=3, textRGB=(52428,1,1)
+	Notebook $nb text="Help:\r"
+	Notebook $nb fStyle=-1, textRGB=(0,0,0), text="\r"
+	Notebook $nb text="1. ", fStyle=4, textRGB=(0,0,65535), text="https://www.youtube.com/channel/UCDTzjGr3mAbRi3O4DJG7xHA\r"
+	Notebook $nb fStyle=-1, textRGB=(0,0,0), text="2. ", fStyle=4, textRGB=(0,0,65535)
+	Notebook $nb text="https://saxs-igorcodedocs.readthedocs.io/en/stable/Installation.html#instructions-for-installation\r"
+	Notebook $nb fStyle=-1, textRGB=(0,0,0), text="3. ", fStyle=4, textRGB=(0,0,65535)
+	Notebook $nb text="https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems", fStyle=-1, textRGB=(0,0,0)
+	Notebook $nb text=" \r"
 	Notebook $nb text="\r"
 	Notebook $nb fStyle=1, text="Requirements", fStyle=-1, text=": \r"
 	Notebook $nb text="1.   Igor 7.05 and higher.  \r"
 	Notebook $nb text="2.   Access to the depository or downloaded zip file of a release from this depository ("
-	Notebook $nb font="Arial", fSize=9, fStyle=1, text="https://github.com/jilavsky/SAXS_IgorCode)\r"
-	Notebook $nb font="default", fSize=-1, fStyle=-1, text="\r"
+	Notebook $nb fSize=9, fStyle=1, text="https://github.com/jilavsky/SAXS_IgorCode)\r"
+	Notebook $nb fSize=-1, fStyle=-1, text="\r"
 	Notebook $nb fStyle=1, textRGB=(65535,0,0), text="Use", fStyle=-1, textRGB=(0,0,0), text=": \r"
 	Notebook $nb text="Select from \"", fStyle=2, text="Instal Packages", fStyle=-1, text="\" the menu the option \"", fStyle=2
 	Notebook $nb text="Open GitHub GUI", fStyle=-1, text="\" to get the \"", fStyle=2, text="Install/Uninstall Package"
 	Notebook $nb fStyle=-1, text="\"  \r"
-	Notebook $nb text="Select location of yoru distribution : \r"
-	Notebook $nb text="a/\tYou can use the depository itself (and this program will download zip file and install form it.:\r"
+	Notebook $nb text="Select location of distribution you want to use: \r"
+	Notebook $nb text="a/\tYou can use Github itself and this program will download zip file and install form it:\r"
 	Notebook $nb fStyle=3, text="\tIf selected, uncheck the \"Use Local Folder?\" and then push \"Check packages versions\". \r"
 	Notebook $nb fStyle=-1
-	Notebook $nb text="b/\tYou can use unzipped copy of the depository. Dowload a version of packages from Github yourself, unzi"
-	Notebook $nb text="p and place the unzipped folder on the desktop together with this Igor Installer experiment. Run from th"
-	Notebook $nb text="ere. ", fStyle=3, text="\tCheck the \"Use Local Folder?\" and then push \"Check packages versions\"\r"
+	Notebook $nb text="b/\tYou can use local copy of the depository. Download zip file with version of packages from Github manu"
+	Notebook $nb text="ally, unzip, and place the folder from inside of the zip frile (typically named SAXS_IgorCode_MonthYear)"
+	Notebook $nb text=" on the desktop together with this Igor Installer experiment. Run from there. ", fStyle=3
+	Notebook $nb text="\tCheck the \"Use Local Folder?\" and then push \"Check packages versions\"\r"
 	Notebook $nb fStyle=-1, text="\r"
 	Notebook $nb text="Installer will check what is available on your computer and in selected depository. It will offer table "
 	Notebook $nb text="with versions. \r"
@@ -2998,26 +2967,35 @@ Function GHW_GenerateHelp()
 	Notebook $nb fStyle=1, text="Beta versions", fStyle=-1
 	Notebook $nb text=": If you need/want latest beta version, check checkbox \"Include Beta releases\" and list in \"Select relea"
 	Notebook $nb text="se to install\" will include Beta versions and \"master\".  Beta versions are designated by depository main"
-	Notebook $nb text="tainer, \"master\" is latest versions now (when installing)  available in the depository. Note, there are "
-	Notebook $nb text="no guarrantees the master will even work, that code is under developement! YOu may want to check with ma"
-	Notebook $nb text="intainer if it is smart to install it. \r"
+	Notebook $nb text="tainer, \"", fStyle=1, text="master", fStyle=-1
+	Notebook $nb text="\" is latest version at the time of download available in the depository. Note, there are no guarrantees "
+	Notebook $nb text="the master will even work, that code is under developement! You may want to check with maintainer if it "
+	Notebook $nb text="is smart to install it. \r"
 	Notebook $nb text="\r"
-	Notebook $nb text="If there are problems, you will get error message with instructions. Please, let me know and"
-	Notebook $nb textRGB=(0,1,2), text=", please, send me the log file \"", textRGB=(0,0,0), text="InstallRecord.txt"
-	Notebook $nb textRGB=(0,1,2)
+	Notebook $nb fStyle=3, textRGB=(52428,1,1)
+	Notebook $nb text="Master: Install Master only when instructed by auhtor. Typically because a bug you have issues with was"
+	Notebook $nb text=" fixed for you.", fStyle=1, text="  \r"
+	Notebook $nb fStyle=-1, textRGB=(0,0,0), text="\r"
+	Notebook $nb text="If there are problems, you will get error message with instructions. First follow instructions on :"
+	Notebook $nb fStyle=4, textRGB=(0,0,65535), text=" https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems \r"
+	Notebook $nb fStyle=-1, textRGB=(0,0,0), text="\r"
+	Notebook $nb text="If that does not work, let me know and", textRGB=(0,1,2), text=", please, send me the log file \""
+	Notebook $nb textRGB=(0,0,0), text="InstallRecord.txt", textRGB=(0,1,2)
 	Notebook $nb text="\" from your desktop together with information on yoru computer - Windows version, path to your .../Wavem"
-	Notebook $nb text="etrics/Igor Pro User Files and anythign else special on yrou computer.\r"
+	Notebook $nb text="etrics/Igor Pro User Files and anything else special on yrou computer.\r"
 	Notebook $nb textRGB=(0,0,0), text="\r"
-	Notebook $nb text="After succeful installation, delete the distribution zip file, unzipped folder and the logfile (InstallR"
-	Notebook $nb text="ecord.txt) file from desktop.\r"
+	Notebook $nb text="After sucessful installation, delete the distribution zip file, unzipped folder and the logfile (Install"
+	Notebook $nb text="Record.txt) file from desktop.\r"
 	Notebook $nb text="\r"
-	Notebook $nb text="note: \tdownload of distribution zip file may take a long time (they are around 50-80Mb). You may want to"
-	Notebook $nb text=" keep it in case you want to reinstall in short future. If proper zip file is found on desktop, it will "
-	Notebook $nb text="be used even in subsequent installations. \r"
-	Notebook $nb text="\tInstall xop files based on bit-version you instend to use (or simply install both if you have 64-bit ma"
-	Notebook $nb text="chine). The xop packages are needed for any package.\r"
-	Notebook $nb text="\tAfter any unistallation, you should reinstall packages you intend to use. Another words, since packages"
-	Notebook $nb text=" share libraries, after any uninstallation the other packages are likely unusable. \r"
+	Notebook $nb text="note: download of distribution zip file may take a long time (they are around 100Mb). You may want to ke"
+	Notebook $nb text="ep it in case you want to reinstall in short future. If proper zip file is found on desktop, it will be "
+	Notebook $nb text="used even in subsequent installations. \r"
+	Notebook $nb text="\r"
+	Notebook $nb text="Install xop files based on bit-version you intend to use (or simply install both if you have 64-bit mach"
+	Notebook $nb text="ine). The xop packages are needed for any package.\r"
+	Notebook $nb text="\r"
+	Notebook $nb text="After any unistallation, you should reinstall packages you intend to use. Another words, since packages "
+	Notebook $nb text="share libraries, after any uninstallation of only one package the other packages are likely unusable. \r"
 	Notebook $nb text="\r"
 	Notebook $nb text="*** ", fSize=11, fStyle=1, textRGB=(52428,1,1)
 	Notebook $nb text="You can always update to the latest version of the packages using this experiment. When I update the on "
@@ -3028,4 +3006,82 @@ Function GHW_GenerateHelp()
 	Notebook $nb text="ilavsky@aps.anl.gov\r"
 	Notebook $nb selection={startOfFile,startOfFile}, findText={"",1}
 	endif
+end
+
+
+//**************************************************************************************************************************************
+//**************************************************************************************************************************************
+// this is unzip method using PowerShell. Works for Windows 8 and 10. It would also work for Mac, not that is not needed. 
+
+// returns 1 for success, 0 for failure
+function GHW_unzipArchive(archivePathStr, unzippedPathStr)
+    string archivePathStr, unzippedPathStr
+        
+    string validExtensions="zip;" // set to "" to skip check
+    variable verbose=1 	// choose whether to print output from executescripttext
+    verbose = 0 				//does not work on Windows anyway... 
+    string msg, unixCmd, cmd
+        
+    GetFileFolderInfo /Q/Z archivePathStr
+
+    if(V_Flag || V_isFile==0)
+        printf "Could not find file %s\r", archivePathStr
+        return 0
+    endif
+
+    if(itemsInList(validExtensions) && findlistItem(ParseFilePath(4, archivePathStr, ":", 0, 0), validExtensions, ";", 0, 0)==-1)
+        printf "%s doesn't appear to be a zip archive\r", ParseFilePath(0, archivePathStr, ":", 1, 0)
+        return 0
+    endif
+    
+    if(strlen(unzippedPathStr)==0)
+        unzippedPathStr=SpecialDirPath("Desktop",0,0,0)+ParseFilePath(3, archivePathStr, ":", 0, 0)
+        sprintf msg, "Unzip to %s:%s?", ParseFilePath(0, unzippedPathStr, ":", 1, 1), ParseFilePath(0, unzippedPathStr, ":", 1, 0)
+        doALert 1, msg
+        if (v_flag==2)
+            return 0
+        endif
+    else
+        GetFileFolderInfo /Q/Z unzippedPathStr
+        if(V_Flag || V_isFolder==0)
+            sprintf msg, "Could not find unzippedPathStr folder\rCreate %s?", unzippedPathStr
+            doalert 1, msg
+            if (v_flag==2)
+                return 0
+            endif
+        endif   
+    endif
+    
+    // make sure unzippedPathStr folder exists - necessary for mac
+    newpath /C/O/Q acw_tmpPath, unzippedPathStr
+    killpath /Z acw_tmpPath
+
+    if(stringmatch(StringByKey("OS", igorinfo(3))[0,2],"Win")) // Windows
+        // The following works with .Net 4.5, which is available in Windows 8 and up.
+        // current versions of Windows with Powershell 5 can use the more succinct PS command 
+        // 'Expand-Archive -LiteralPath C:\archive.zip -DestinationPath C:\Dest'
+        //  Expand-Archive -LiteralPath C:\Archives\Invoices.Zip -DestinationPath C:\InvoicesUnzipped -Force
+        //https://blog.netwrix.com/2018/11/06/using-powershell-to-create-zip-archives-and-unzip-files/
+        //string strVersion=StringByKey("OSVERSION", igorinfo(3))  //this does not work, Windows 10 report 6.x
+        variable WinVersion=str2num(StringByKey("OS", igorinfo(3))[7,12])		//this extractssimply number from OS key, should be 7, 8, 10 for now. 
+        if (WinVersion<8)
+            print "unzipArchive requires Windows 8 or later"
+            return 0
+        endif
+        
+        archivePathStr=parseFilePath(5, archivePathStr, "\\", 0, 0)
+        unzippedPathStr=parseFilePath(5, unzippedPathStr, "\\", 0, 0)
+        cmd="powershell.exe -nologo -noprofile -command \"& { Add-Type -A 'System.IO.Compression.FileSystem';"
+        sprintf cmd "%s [IO.Compression.ZipFile]::ExtractToDirectory('%s', '%s'); }\"", cmd, archivePathStr, unzippedPathStr
+    else // Mac
+        sprintf unixCmd, "unzip %s -d %s", ParseFilePath(5, archivePathStr, "/", 0,0), ParseFilePath(5, unzippedPathStr, "/", 0,0)
+        sprintf cmd, "do shell script \"%s\"", unixCmd
+    endif
+    
+    executescripttext /B/UNQ/Z cmd
+    if(verbose)
+        print S_value // output from executescripttext
+    endif
+    
+    return (v_flag==0)
 end

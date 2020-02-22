@@ -1,6 +1,6 @@
 #pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.06
+#pragma version = 1.09
 #pragma IgorVersion = 7.05
 
 
@@ -11,6 +11,8 @@ Strconstant ksNameOfConfFile ="IgorInstallerConfig.xml"
 strconstant strConstRecordwwwAddress="https://usaxs.xray.aps.anl.gov/staff/jan-ilavsky/IrenaNikaRecords/installrecord.php?"
 Strconstant NameOfInstallMessageFile ="InstallMessage.ifn"
 
+//1.09 adds better unzip for Windows 8 and 10. 
+//1.08 added better messages for failed installations.
 //1.05 fix location of new php file, increase Igor version need - rest of the code needs 7.05 or higher anyway. 
 //1.05 adds Message from installer, promoted version requirement to 7.05  
 //1.04 Addes recording of installation (method, packages, success etc) for statistical purposes.
@@ -36,7 +38,7 @@ end
 //**************************************************************** 
 Function GHW_Start()
 	if (str2num(stringByKey("IGORVERS",IgorInfo(0)))<7.00)
-			DoAlert /T="Important message :"  0, "This installer will work ONLY with Igor 7.00. Please, update your Igor before running this installer!"  
+			DoAlert /T="Important message :"  0, "This installer will work ONLY with Igor 7.00 or higher. Please, update your Igor before running this installer!"  
 			BrowseURL "http://www.wavemetrics.com/support/versions.htm"
 	else
 		DoWIndow GH_MainPanel
@@ -113,7 +115,7 @@ Function GHW_CreateMainpanel()
 	Button SignupIrena,pos={390,260},size={200,18},proc=GHW_ButtonProc,title="Sign up for Irena mailing list"
 	Button SignUpNika,pos={390,290},size={200,18},proc=GHW_ButtonProc,title="Sign up for Nika mailing list"
 //
-	DrawText 5,320,"Version 1.01 of Github Installer, JIL."
+	DrawText 5,320,"Version 1.08 of Github Installer, JIL."
 	DrawText 5,335,"Please, check the web site for latest version before using." 
 end
 //**************************************************************** 

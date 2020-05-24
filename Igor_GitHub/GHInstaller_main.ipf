@@ -1,6 +1,6 @@
 #pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.09
+#pragma version = 1.11
 #pragma IgorVersion = 7.05
 
 
@@ -11,6 +11,8 @@ Strconstant ksNameOfConfFile ="IgorInstallerConfig.xml"
 strconstant strConstRecordwwwAddress="https://usaxs.xray.aps.anl.gov/staff/jan-ilavsky/IrenaNikaRecords/installrecord.php?"
 Strconstant NameOfInstallMessageFile ="InstallMessage.ifn"
 
+//1.11 critical upgrade, fix for bug in code which relies on bug in Igor behavior which will be fixed in Igor 8.05 and 9
+//1.10 adds ability to delete folders on desktop
 //1.09 adds better unzip for Windows 8 and 10. 
 //1.08 added better messages for failed installations.
 //1.05 fix location of new php file, increase Igor version need - rest of the code needs 7.05 or higher anyway. 

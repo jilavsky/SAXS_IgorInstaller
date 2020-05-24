@@ -1,9 +1,10 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.09
+#pragma version = 1.11
 
 
-//1.09 added for Windows 8+ uznip method using PowerShell per: https://www.wavemetrics.com/code-snippet/expand-zip-archive-platform-agnostic
+
+//1.11 critical upgrade, fix for bug in code which relies on bug in Igor behavior which will be fixed in Igor 8.05 and 9 
 //1.08 added better messaging to user for failed installations
 //1.05 minor fixes
 //1.04 Addes recording of installation (method, packages, success etc) for statistical purposes.
@@ -818,14 +819,14 @@ static  Function GHW_ListProcFiles(PathStr, resetWaves, LocateWhere)
 			if(strlen(S_aliasPath)>3)		//in case user has stale alias, S_aliasPath has 0 length. Need to skip this pathological case. 
 				//HR Recurse only if S_aliasPath points to a folder. I don't really know what I'm doing here but this seems like it will prevent the infinite loop.
 				GetFileFolderInfo/Z/Q/P=tempPath S_aliasPath	
-				isItXOP = IamOnMac * stringmatch(S_aliasPath, "*xop*" )
+				isItXOP = IamOnMac * stringmatch(S_Path, "*xop*" )
 				if (V_flag==0 && V_isFolder&&!isItXOP)		//this is folder, so all items in the folder are included... Except XOP is folder too... 
-					GHW_ListProcFiles(S_aliasPath, 0,LocateWhere)
+					GHW_ListProcFiles(S_Path, 0,LocateWhere)
 				elseif(V_flag==0 && (!V_isFolder || isItXOP))	//this is link to file. Need to include the info on the file...
 					//*************
 					Redimension/N=(numpnts(FileNames)+1) FileNames, PathToFiles,FileVersions
-					tempFileName =stringFromList(ItemsInList(S_aliasPath,":")-1, S_aliasPath,":")
-					tempPathStr = RemoveFromList(tempFileName, S_aliasPath,":")
+					tempFileName =stringFromList(ItemsInList(S_Path,":")-1, S_Path,":")
+					tempPathStr = RemoveFromList(tempFileName, S_Path,":")
 					FileNames[numpnts(FileNames)-1] = tempFileName
 					PathToFiles[numpnts(FileNames)-1] = tempPathStr
 					//try to get version from #pragma version = ... This seems to be the most robust way I found...
@@ -1453,7 +1454,10 @@ Function GHW_Install()
 		endfor
 		GHW_MakeRecordOfProgress("Installation from local folder "+LocalFolderPath+" finished. All done. " )
 		GHW_SubmitRecordToWeb(ListOfPackagesToInstall, SelectedReleaseName, "success")
-		DoAlert /T="Installation succesfully finished" 0, "Requested Installation finished succesfully. Delete the distribution zip file, folder with unzipped data and InstallLog.txt, if you do not need them anymore." 
+		DoAlert /T="Installation succesfully finished" 0, "Requested Installation finished succesfully. Igor will next try to delete distribution zip file, folder with unzipped data, and InstallLog.txt. Let it do so unless you expect to need them. " 
+		DeleteFile /P=userDesktop/Z  InternalDataName+".zip"
+		DeleteFile /P=userDesktop/Z  "InstallRecord.log"
+		DeleteFolder /P=userDesktop/Z  InternalDataName
 	endif	
 	SetDataFolder saveDFR					// Restore current data folder
 end
@@ -2908,103 +2912,110 @@ Function GHW_GenerateHelp()
 	doWindow Inst_Help
 	if(V_Flag)
 		DoWindow/F Inst_Help
-	else
-
-	String nb = "Inst_Help"
-	NewNotebook/N=$nb/F=1/V=1/K=1/ENCG={3,1}/W=(311.25,40.25,882.75,792.5)
-	Notebook $nb defaultTab=36, magnification=100
-	Notebook $nb showRuler=1, rulerUnits=1, updating={1, 60}
-	Notebook $nb newRuler=Normal, justification=0, margins={0,0,468}, spacing={0,0,0}, tabs={}, rulerDefaults={"Arial",10,0,(0,0,0)}
-	Notebook $nb newRuler=Header, justification=1, margins={0,0,468}, spacing={0,0,0}, tabs={}, rulerDefaults={"Arial",10,0,(0,0,0)}
-	Notebook $nb ruler=Header, fSize=12, fStyle=1, text="Installer for Irena, Nika, and Indra packages\r"
-	Notebook $nb text="using Github depository.\r"
-	Notebook $nb text="https://github.com/jilavsky/SAXS_IgorCode\r"
-	Notebook $nb ruler=Normal, fSize=-1, fStyle=-1, text="\r"
-	Notebook $nb fStyle=2, text="Jan Ilavsky, September 2019\r"
-	Notebook $nb fStyle=-1, text="\r"
-	Notebook $nb fStyle=1, text="NOTE: ", fStyle=-1, text="Install ONLY packages you really need. Here are hints...\r"
-	Notebook $nb text="Irena ... package for modeling of small-angle scattering data (and reflectivity)\r"
-	Notebook $nb text="Nika ... package for reduction of data from area detectors (pinhole cameras) 2D -> 1D\r"
-	Notebook $nb text="Indra ... package for data reduction of USAXS data (NOTE: unless you measured on my instrument or own Ri"
-	Notebook $nb text="gaku USAXS, this is _NOT_ for you) \r"
-	Notebook $nb text="\r"
-	Notebook $nb fStyle=3, textRGB=(52428,1,1)
-	Notebook $nb text="Help:\r"
-	Notebook $nb fStyle=-1, textRGB=(0,0,0), text="\r"
-	Notebook $nb text="1. ", fStyle=4, textRGB=(0,0,65535), text="https://www.youtube.com/channel/UCDTzjGr3mAbRi3O4DJG7xHA\r"
-	Notebook $nb fStyle=-1, textRGB=(0,0,0), text="2. ", fStyle=4, textRGB=(0,0,65535)
-	Notebook $nb text="https://saxs-igorcodedocs.readthedocs.io/en/stable/Installation.html#instructions-for-installation\r"
-	Notebook $nb fStyle=-1, textRGB=(0,0,0), text="3. ", fStyle=4, textRGB=(0,0,65535)
-	Notebook $nb text="https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems", fStyle=-1, textRGB=(0,0,0)
-	Notebook $nb text=" \r"
-	Notebook $nb text="\r"
-	Notebook $nb fStyle=1, text="Requirements", fStyle=-1, text=": \r"
-	Notebook $nb text="1.   Igor 7.05 and higher.  \r"
-	Notebook $nb text="2.   Access to the depository or downloaded zip file of a release from this depository ("
-	Notebook $nb fSize=9, fStyle=1, text="https://github.com/jilavsky/SAXS_IgorCode)\r"
-	Notebook $nb fSize=-1, fStyle=-1, text="\r"
-	Notebook $nb fStyle=1, textRGB=(65535,0,0), text="Use", fStyle=-1, textRGB=(0,0,0), text=": \r"
-	Notebook $nb text="Select from \"", fStyle=2, text="Instal Packages", fStyle=-1, text="\" the menu the option \"", fStyle=2
-	Notebook $nb text="Open GitHub GUI", fStyle=-1, text="\" to get the \"", fStyle=2, text="Install/Uninstall Package"
-	Notebook $nb fStyle=-1, text="\"  \r"
-	Notebook $nb text="Select location of distribution you want to use: \r"
-	Notebook $nb text="a/\tYou can use Github itself and this program will download zip file and install form it:\r"
-	Notebook $nb fStyle=3, text="\tIf selected, uncheck the \"Use Local Folder?\" and then push \"Check packages versions\". \r"
-	Notebook $nb fStyle=-1
-	Notebook $nb text="b/\tYou can use local copy of the depository. Download zip file with version of packages from Github manu"
-	Notebook $nb text="ally, unzip, and place the folder from inside of the zip frile (typically named SAXS_IgorCode_MonthYear)"
-	Notebook $nb text=" on the desktop together with this Igor Installer experiment. Run from there. ", fStyle=3
-	Notebook $nb text="\tCheck the \"Use Local Folder?\" and then push \"Check packages versions\"\r"
-	Notebook $nb fStyle=-1, text="\r"
-	Notebook $nb text="Installer will check what is available on your computer and in selected depository. It will offer table "
-	Notebook $nb text="with versions. \r"
-	Notebook $nb text="\tSelect package/releases to install (or unistall)  in \"", fStyle=2, text="Select release to install"
-	Notebook $nb fStyle=-1, text="\". \r"
-	Notebook $nb text="\tPush \"Install/Update\" or \"Unistall\" buttons as needed\r"
-	Notebook $nb text="\r"
-	Notebook $nb text="when succesfully finished, you will get \"All done.\" Alert window and message in the history area. \r"
-	Notebook $nb text="\r"
-	Notebook $nb fStyle=1, text="Beta versions", fStyle=-1
-	Notebook $nb text=": If you need/want latest beta version, check checkbox \"Include Beta releases\" and list in \"Select relea"
-	Notebook $nb text="se to install\" will include Beta versions and \"master\".  Beta versions are designated by depository main"
-	Notebook $nb text="tainer, \"", fStyle=1, text="master", fStyle=-1
-	Notebook $nb text="\" is latest version at the time of download available in the depository. Note, there are no guarrantees "
-	Notebook $nb text="the master will even work, that code is under developement! You may want to check with maintainer if it "
-	Notebook $nb text="is smart to install it. \r"
-	Notebook $nb text="\r"
-	Notebook $nb fStyle=3, textRGB=(52428,1,1)
-	Notebook $nb text="Master: Install Master only when instructed by auhtor. Typically because a bug you have issues with was"
-	Notebook $nb text=" fixed for you.", fStyle=1, text="  \r"
-	Notebook $nb fStyle=-1, textRGB=(0,0,0), text="\r"
-	Notebook $nb text="If there are problems, you will get error message with instructions. First follow instructions on :"
-	Notebook $nb fStyle=4, textRGB=(0,0,65535), text=" https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems \r"
-	Notebook $nb fStyle=-1, textRGB=(0,0,0), text="\r"
-	Notebook $nb text="If that does not work, let me know and", textRGB=(0,1,2), text=", please, send me the log file \""
-	Notebook $nb textRGB=(0,0,0), text="InstallRecord.txt", textRGB=(0,1,2)
-	Notebook $nb text="\" from your desktop together with information on yoru computer - Windows version, path to your .../Wavem"
-	Notebook $nb text="etrics/Igor Pro User Files and anything else special on yrou computer.\r"
-	Notebook $nb textRGB=(0,0,0), text="\r"
-	Notebook $nb text="After sucessful installation, delete the distribution zip file, unzipped folder and the logfile (Install"
-	Notebook $nb text="Record.txt) file from desktop.\r"
-	Notebook $nb text="\r"
-	Notebook $nb text="note: download of distribution zip file may take a long time (they are around 100Mb). You may want to ke"
-	Notebook $nb text="ep it in case you want to reinstall in short future. If proper zip file is found on desktop, it will be "
-	Notebook $nb text="used even in subsequent installations. \r"
-	Notebook $nb text="\r"
-	Notebook $nb text="Install xop files based on bit-version you intend to use (or simply install both if you have 64-bit mach"
-	Notebook $nb text="ine). The xop packages are needed for any package.\r"
-	Notebook $nb text="\r"
-	Notebook $nb text="After any unistallation, you should reinstall packages you intend to use. Another words, since packages "
-	Notebook $nb text="share libraries, after any uninstallation of only one package the other packages are likely unusable. \r"
-	Notebook $nb text="\r"
-	Notebook $nb text="*** ", fSize=11, fStyle=1, textRGB=(52428,1,1)
-	Notebook $nb text="You can always update to the latest version of the packages using this experiment. When I update the on "
-	Notebook $nb text="line depository, this experiment will pick the listing and re-download ALL packages again. To check whic"
-	Notebook $nb text="h version is the last one available on the web, use button \"Check packages versions"
-	Notebook $nb fSize=-1, fStyle=-1, textRGB=(0,1,2), text="\".\r"
-	Notebook $nb text="\r"
-	Notebook $nb text="ilavsky@aps.anl.gov\r"
-	Notebook $nb selection={startOfFile,startOfFile}, findText={"",1}
+	else	
+		String nb = "Inst_Help"
+		NewNotebook/N=$nb/F=1/V=1/K=1/ENCG={3,1}/W=(159,40.25,652.5,736.25)
+		Notebook $nb defaultTab=36, magnification=100
+		Notebook $nb showRuler=1, rulerUnits=1, updating={1, 60}
+		Notebook $nb newRuler=Normal, justification=0, margins={0,0,468}, spacing={0,0,0}, tabs={}, rulerDefaults={"Arial",10,0,(0,0,0)}
+		Notebook $nb newRuler=Header, justification=1, margins={0,0,468}, spacing={0,0,0}, tabs={}, rulerDefaults={"Arial",10,0,(0,0,0)}
+		Notebook $nb ruler=Header, fSize=12, fStyle=1, text="Installer for Irena, Nika, and Indra packages\r"
+		Notebook $nb text="using Github depository.\r"
+		Notebook $nb text="https://github.com/jilavsky/SAXS_IgorCode\r"
+		Notebook $nb ruler=Normal, fSize=-1, fStyle=-1, text="\r"
+		Notebook $nb fStyle=2, text="Jan Ilavsky, May 2020\r"
+		Notebook $nb fStyle=-1, text="\r"
+		Notebook $nb fStyle=1, text="NOTE:", fSize=9, text=" ", fStyle=-1
+		Notebook $nb text="Install ONLY packages you really need. Here are hints...\r"
+		Notebook $nb text="Irena ... package for modeling of small-angle scattering data (and reflectivity)\r"
+		Notebook $nb text="Nika ...  package for reduction of data from area detectors (pinhole cameras) 2D -> 1D\r"
+		Notebook $nb text="Indra ... package for data reduction of USAXS data (unless you measured on APS USAXS or own Rigaku USAXS"
+		Notebook $nb text=", this is _NOT_ for you) \r"
+		Notebook $nb fSize=-1, text="\r"
+		Notebook $nb fStyle=3, textRGB=(52428,1,1), text="Help:\r"
+		Notebook $nb fStyle=-1, textRGB=(0,0,0), text="\r"
+		Notebook $nb text="1. ", fStyle=4, textRGB=(0,0,65535), text="https://www.youtube.com/channel/UCDTzjGr3mAbRi3O4DJG7xHA\r"
+		Notebook $nb fStyle=-1, textRGB=(0,0,0), text="2. ", fStyle=4, textRGB=(0,0,65535)
+		Notebook $nb text="https://saxs-igorcodedocs.readthedocs.io/en/stable/Installation.html#instructions-for-installation\r"
+		Notebook $nb fStyle=-1, textRGB=(0,0,0), text="3. ", fStyle=4, textRGB=(0,0,65535)
+		Notebook $nb text="https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems", fStyle=-1, textRGB=(0,0,0)
+		Notebook $nb text=" \r"
+		Notebook $nb text="\r"
+		Notebook $nb fStyle=1, text="Requirements", fStyle=-1, text=": \r"
+		Notebook $nb fSize=9
+		Notebook $nb text="1.   Igor 8.04 or higher.  Igor 7.08 is end of life, upgrade (it may still work, but is untested now). \r"
+		Notebook $nb text="2.   Access to the depository or downloaded zip file of a release from this depository (", fStyle=1
+		Notebook $nb text="https://github.com/jilavsky/SAXS_IgorCode)\r"
+		Notebook $nb fSize=-1, fStyle=-1, text="\r"
+		Notebook $nb fStyle=1, textRGB=(65535,0,0), text="Use", fStyle=-1, textRGB=(0,0,0), text=": \r"
+		Notebook $nb text="1.\tSelect from \"", fStyle=2, text="Instal Packages", fStyle=-1, text="\" the menu the option \""
+		Notebook $nb fStyle=2, text="Open GitHub GUI", fStyle=-1, text="\" to get the \"", fStyle=2, text="Install/Uninstall Package"
+		Notebook $nb fStyle=-1, text="\"  Panel. \r"
+		Notebook $nb text="2.\tSelect method of distribution you want to use: \r"
+		Notebook $nb fSize=9, text="\ta/\t", fStyle=1, text="Default is Github", fStyle=-1
+		Notebook $nb text=". Installer will download zip file, unzip, and install from it. \r"
+		Notebook $nb text="\t\tMake sure the \"", fStyle=1, text="Use Local Folder", fStyle=-1, text="?\"checkbox is ", fStyle=5
+		Notebook $nb text="unchecked", fStyle=-1, text=".  \r"
+		Notebook $nb text="\t\tPush \"", fStyle=1, text="Check packages versions", fStyle=-1, text="\". \r"
+		Notebook $nb text="\tb/\t", fStyle=1, text="Optional is local copy", fStyle=-1, text=" of the depository. \r"
+		Notebook $nb text="\t\tMake sure the \"", fStyle=1, text="Use Local Folder", fStyle=-1, text="?\"checkbox is ", fStyle=5
+		Notebook $nb text="checked", fStyle=4, text=".\r"
+		Notebook $nb fStyle=-1, text="\t\tDownload zip file with version of packages from Github manually.\r"
+		Notebook $nb text="\t\tUnzip, and place the folder from inside of the zip file (typically named SAXS_IgorCode_MonthYear) \r"
+		Notebook $nb text="\t\t\ton the desktop together with this Igor Installer experiment.\r"
+		Notebook $nb text="\t\tPush \"", fStyle=1, text="Check packages versions", fStyle=-1, text="\"\r"
+		Notebook $nb fSize=-1, text="\r"
+		Notebook $nb text="3.\tInstaller will check what version is available. It will offer table with versions. \r"
+		Notebook $nb text="4.\tSelect package/releases to install (or unistall)  in \"", fStyle=3, text="Select release to install"
+		Notebook $nb fStyle=-1, text="\". \r"
+		Notebook $nb text="5.\tPush \"", fStyle=1, text="Install/Update", fStyle=-1, text="\" or \"", fStyle=1, text="Unistall"
+		Notebook $nb fStyle=-1, text="\" buttons as needed\r"
+		Notebook $nb text="\r"
+		Notebook $nb text="when succesfully finished, you will get \"All done.\" Alert window and message in the history area. \r"
+		Notebook $nb text="\r"
+		Notebook $nb fStyle=1, text="Beta versions", fStyle=-1, text=": \r"
+		Notebook $nb text="If you need/want latest beta version, check checkbox \"", fStyle=1, text="Include Beta releases"
+		Notebook $nb fStyle=-1, text="\" and list in \"", fStyle=1, text="Select release to install", fStyle=-1
+		Notebook $nb text="\" will include Beta versions and \"", fStyle=1, text="master", fStyle=-1
+		Notebook $nb text="\" (listed at the end of the list).  \r"
+		Notebook $nb text="\t", fStyle=1, text="Beta versions", fStyle=-1
+		Notebook $nb text=" are released as needed when code is relatively stable. \r"
+		Notebook $nb text="\t\"", fStyle=1, text="master", fStyle=-1
+		Notebook $nb text="\" is latest version at the time of download available in the depository. \r"
+		Notebook $nb text="Note, there are no guarrantees the master will even work, that code is under developement! "
+		Notebook $nb fStyle=3, textRGB=(52428,1,1)
+		Notebook $nb text="Install Master only when instructed by author. Typically because a bug you have issues with was fixed fo"
+		Notebook $nb text="r you.", fStyle=1, text="  \r"
+		Notebook $nb fStyle=-1, textRGB=(0,0,0), text="\r"
+		Notebook $nb text="If there are problems, you will get error message with instructions. First follow instructions on :"
+		Notebook $nb fStyle=4, textRGB=(0,0,65535), text=" https://github.com/jilavsky/SAXS_IgorCode/wiki/Installation-Problems \r"
+		Notebook $nb fStyle=-1, textRGB=(0,0,0), text="\r"
+		Notebook $nb text="If that does not work, let author know and", textRGB=(0,1,2), text=", please, send me the log file \""
+		Notebook $nb textRGB=(0,0,0), text="InstallRecord.txt", textRGB=(0,1,2)
+		Notebook $nb text="\" from your desktop together with information on yoru computer - Windows version, path to your .../Wavem"
+		Notebook $nb text="etrics/Igor Pro User Files and anything else special on yrou computer.\r"
+		Notebook $nb textRGB=(0,0,0), text="\r"
+		Notebook $nb text="After sucessful installation, code will attempt to delete the distribution zip file and the unzipped fol"
+		Notebook $nb text="der from desktop. It will ask for permissions to do it. If it fails - or you do not let it - do it manua"
+		Notebook $nb text="lly. You can delete also the logfile (InstallRecord.txt) file from desktop.\r"
+		Notebook $nb text="\r"
+		Notebook $nb text="note: download of distribution zip file may take a long time (they are around 100Mb). You may want to ke"
+		Notebook $nb text="ep it in case you want to reinstall in short future. If proper zip file is found on desktop, it will be "
+		Notebook $nb text="used even in subsequent installations. \r"
+		Notebook $nb text="\r"
+		Notebook $nb text="Install xop files based on bit-version you intend to use (or simply install both if you have 64-bit mach"
+		Notebook $nb text="ine). The xop packages are needed for any package.\r"
+		Notebook $nb text="\r"
+		Notebook $nb text="After any unistallation, you should reinstall packages you intend to use. Another words, since packages "
+		Notebook $nb text="share libraries, after any uninstallation of only one package the other packages are likely unusable. \r"
+		Notebook $nb text="\r"
+		Notebook $nb text="*** ", fSize=11, fStyle=1, textRGB=(52428,1,1)
+		Notebook $nb text="You can always update to the latest version of the packages using this experiment. When I update the on "
+		Notebook $nb text="line depository, this experiment will pick the listing and re-download ALL packages again. To check whic"
+		Notebook $nb text="h version is the last one available on the web, use button \"Check packages versions"
+		Notebook $nb fSize=-1, fStyle=-1, textRGB=(0,1,2), text="\".\r"
+		Notebook $nb text="\r"
+		Notebook $nb text="ilavsky@aps.anl.gov\r"
 	endif
 end
 

@@ -117,7 +117,7 @@ Function GHW_CreateMainpanel()
 	Button SignupIrena,pos={390,260},size={200,18},proc=GHW_ButtonProc,title="Sign up for Irena mailing list"
 	Button SignUpNika,pos={390,290},size={200,18},proc=GHW_ButtonProc,title="Sign up for Nika mailing list"
 //
-	DrawText 5,320,"Version 1.08 of Github Installer, JIL."
+	DrawText 5,320,"Version 1.11 of Github Installer, JIL."
 	DrawText 5,335,"Please, check the web site for latest version before using." 
 end
 //**************************************************************** 

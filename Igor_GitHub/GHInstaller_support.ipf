@@ -1,9 +1,9 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.11
+#pragma version = 1.12
 
 
-
+//1.12 fix GH links issue which was failing to loacate proper name for new folder. 
 //1.11 critical upgrade, fix for bug in code which relies on bug in Igor behavior which will be fixed in Igor 8.05 and 9 
 //1.08 added better messaging to user for failed installations
 //1.05 minor fixes
@@ -1359,7 +1359,8 @@ Function GHW_Install()
 		string URLtoGet=StringByKey("SourceFileAddress", LookHere  , "=",";")
 		//need to build name of data inside the zip file... 
 		variable ItemsInPath=ItemsInList(URLtoGet,"/")
-		string InternalDataName = StringFromList(ItemsInPath-3, URLtoGet, "/")
+		//string InternalDataName = StringFromList(ItemsInPath-3, URLtoGet, "/")	//thsi fails now on GH changing zip file links
+		string InternalDataName = "SAXS_IgorCode"
 		if(stringmatch(SelectedReleaseName,"master"))
 			URLtoGet = RemoveListItem(ItemsInPath-1, URLtoGet, "/")+"master.zip"
 			InternalDataName =InternalDataName+"-master"

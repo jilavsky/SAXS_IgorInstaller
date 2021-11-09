@@ -3,7 +3,7 @@
 #pragma version = 1.12
 
 
-//1.12 fix GH links issue which was failing to loacate proper name for new folder. 
+//1.12 fix issue with Giithub chanign location of zip files. 		string InternalDataName = "SAXS_IgorCode"
 //1.11 critical upgrade, fix for bug in code which relies on bug in Igor behavior which will be fixed in Igor 8.05 and 9 
 //1.08 added better messaging to user for failed installations
 //1.05 minor fixes
@@ -216,7 +216,7 @@ Function GHW_DownloadWarning() : Panel
 	SetDrawEnv fsize= 16,textrgb= (65535,0,0)
 	DrawText 94,101,"This may take a while"
 	SetDrawEnv fsize= 16,textrgb= (65535,0,0)
-	DrawText 40,133,"This window will disapper when done"
+	DrawText 40,133,"This window will disappear when done"
 	SetVariable UserMessage,pos={26.00,49.00},size={290.00,17.00},title="Info: "
 	SetVariable UserMessage,fSize=11,fStyle=1,valueColor=(65535,0,0)
 	SetVariable UserMessage,value= root:Packages:GHInstaller:GUIReportActivityForUser,noedit= 1
@@ -1355,14 +1355,16 @@ Function GHW_Install()
 		if(stringmatch(SelectedReleaseName,"master"))
 			WhichReleaseUserWants = 0				//let's get any one of the addresses and remove the name of the zip file
 		endif												//then append repoName-master.zip and that is current version (SAXS_IgorCode-master.zip)
+		//or use ksWebAddressForMaster???
 		LookHere = ListOfReleases[WhichReleaseUserWants][2]
 		string URLtoGet=StringByKey("SourceFileAddress", LookHere  , "=",";")
 		//need to build name of data inside the zip file... 
 		variable ItemsInPath=ItemsInList(URLtoGet,"/")
-		//string InternalDataName = StringFromList(ItemsInPath-3, URLtoGet, "/")	//thsi fails now on GH changing zip file links
+		//string InternalDataName = StringFromList(ItemsInPath-3, URLtoGet, "/") - this breaks on GH chanign location of zip file
 		string InternalDataName = "SAXS_IgorCode"
 		if(stringmatch(SelectedReleaseName,"master"))
 			URLtoGet = RemoveListItem(ItemsInPath-1, URLtoGet, "/")+"master.zip"
+			URLtoGet = ReplaceString("tags", URLtoGet, "heads")
 			InternalDataName =InternalDataName+"-master"
 		else
 			InternalDataName +="-"+ RemoveEnding(StringFromList(ItemsInPath-1, URLtoGet, "/"),".zip")

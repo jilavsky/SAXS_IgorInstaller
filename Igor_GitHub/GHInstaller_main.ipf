@@ -1,17 +1,20 @@
 #pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.12
+#pragma version = 1.13
 #pragma IgorVersion = 8.03
 
 
 
 Strconstant ksNameOfPackages ="Irena, Nika, and Indra"
 Strconstant ksWebAddressForConfFile ="https://raw.githubusercontent.com/jilavsky/SAXS_IgorCode/master/"
+//archise are (2021-11-09): 	    https://github.com/jilavsky/SAXS_IgorCode/archive/refs/tags/October2021.zip
+StrConstant ksWebAddressForMaster="https://github.com/jilavsky/SAXS_IgorCode/archive/refs/heads/master.zip"// - not used for now, may be if needed line 1357 in Support
 Strconstant ksNameOfConfFile ="IgorInstallerConfig.xml"
 strconstant strConstRecordwwwAddress="https://usaxs.xray.aps.anl.gov/staff/jan-ilavsky/IrenaNikaRecords/installrecord.php?"
 Strconstant NameOfInstallMessageFile ="InstallMessage.ifn"
 
-//1.12 fix GH links issue which was failing to loacate proper name for new folder. 
+//1.13 fix issue with Github renaming folders... 
+//1.12 fix issue with Giithub chanign location of zip files. 		string InternalDataName = "SAXS_IgorCode"
 //1.11 critical upgrade, fix for bug in code which relies on bug in Igor behavior which will be fixed in Igor 8.05 and 9
 //1.10 adds ability to delete folders on desktop
 //1.09 adds better unzip for Windows 8 and 10. 
@@ -118,7 +121,7 @@ Function GHW_CreateMainpanel()
 	Button SignupIrena,pos={390,260},size={200,18},proc=GHW_ButtonProc,title="Sign up for Irena mailing list"
 	Button SignUpNika,pos={390,290},size={200,18},proc=GHW_ButtonProc,title="Sign up for Nika mailing list"
 //
-	DrawText 5,320,"Version 1.11 of Github Installer, JIL."
+	DrawText 5,320,"Version 1.13 of Github Installer, JIL."
 	DrawText 5,335,"Please, check the web site for latest version before using." 
 end
 //**************************************************************** 

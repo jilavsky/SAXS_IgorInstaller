@@ -1,8 +1,8 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.12
+#pragma version = 1.14
 
-
+//1.14 fixes issue with WIndows recognition. SHould unzip reaslnable way on WIndows now. 
 //1.12 fix issue with Giithub chanign location of zip files. 		string InternalDataName = "SAXS_IgorCode"
 //1.11 critical upgrade, fix for bug in code which relies on bug in Igor behavior which will be fixed in Igor 8.05 and 9 
 //1.08 added better messaging to user for failed installations
@@ -1605,53 +1605,53 @@ Function GHW_UnzipFileOnDesktopWindows(ZipFileName, UnzippedFolderName, deleteSo
 	endif	
 
 	//for WIndows 8 and higher, use new method using PowerShell
-  variable WinVersion=str2num(StringByKey("OS", igorinfo(3))[7,12])		//this extracts simply number from OS key, should be 7, 8, 10 for now. 
+  //variable WinVersion=str2num(StringByKey("OS", igorinfo(3))[7,12])		//this extracts simply number from OS key, should be 7, 8, 10 for now. 
   variable success
-  if (WinVersion>7.99)				//Powershell is available only on Windows 8+
-		GHW_MakeRecordOfProgress("Windows : Unzipping the file "+ZipFileName+" using Windows 8+ method. " )	
-		success = GHW_unzipArchive(strToDesktop+ZipFileName, strToDesktop)
-		if(success<0.5)		//0 means code failed. 
-			GHW_MakeRecordOfProgress("Windows : FAILED Unzipping the file "+ZipFileName+" using Windows 8+ method. " )	
-			Abort "FAILED Unzipping the file "+ZipFileName+" using Windows 8+ method."
-		endif
-	else
-		//create the command file on the desktop, this is Zipjs.bat per 
-		//from <a href="https://github.com/npocmaka/batch.scripts/blob/master/hybrids/jscript/zipjs.bat" title="https://github.com/npocmaka/batch.scripts/blob/master/hybrids/jscript/zipjs.bat" rel="nofollow">https://github.com/npocmaka/batch.scripts/blob/master/hybrids/jscript/zi...</a>	
-		DoWindow zipjsbat
-		if(V_Flag==0)
-			GHW_CreateZipjsbat()	
-		endif
-		SaveNotebook/O/P=Desktop zipjsbat as "zipjs.bat"
-	   sleep/s 5  //wait to flush buffer so the file actually exists... 
-		DoWindow/K zipjsbat
-		//created the zipjs.bat command file which will unzip the file for us, note must kill the internal Notebook
-		//or Igor will held the file and Windows will throw errors
-		//now create cmd in line with
-		//             zipjs.bat unzip -source C:\myDir\myZip.zip -destination C:\MyDir -keep no -force no
-		// the destination folder is created by the script. 
-		// -keep yes will keep the content of the zip file, -force yes will overwrite the tempfolder for the data if exists
-		// be careful, -force yes will wipe out the destination, if exists, so make sure the data are directed to non-existing folder.
-		string cmd = strToDesktop+"zipjs.bat unzip -source "
-		cmd +=strToDesktop+stringFromList(ItemsInList(ZipFileName,":")-1, ZipFileName,":")+" -destination "
-		cmd +=strToTemp+"IgorCode -keep yes -force yes"
-		ExecuteScriptText cmd
-	   sleep/s 5  //wait to flush buffer so the file actually exists... 
-		//delete the batch file to clean up...
-		DeleteFile /P=Desktop /Z  "zipjs.bat"
-		if(deleteSource)
-			DeleteFile /P=Desktop /Z  ZipFileName		
-		endif
-		GHW_MakeRecordOfProgress("Windows : Unzipped file "+ZipFileName+" to temp folder")
-		//now the folder IgorCode is in the Desktop/ZipFileTempFldr
-		//and we need it in Desktop... 
-		//NewPath /C /O/Q/Z tempForIgorCode, strToDesktop+"IgorCode"
-		cmd ="Xcopy  "+strToTemp+"IgorCode\\"+UnzippedFolderName+"\\*    "+strToDesktop+UnzippedFolderName+"\\ /s /y"
-		//cmd =strToDesktop+"moveData.bat "+strToDesktop+"IgorCode\\IgorCode\\    "+strToDesktop+"IgorCode"
-		ExecuteScriptText cmd
-		GHW_MakeRecordOfProgress("Windows : Copied unzipped file "+ZipFileName+" from temp folder to folder : "+strToDesktop+UnzippedFolderName)
-		sleep/s 5		//wait for some time to get OS chance to sort things out...
-		//check that a file exists so we know the zip worked, and if not, let user unzip manually...
+  //if (WinVersion>7.99)				//Powershell is available only on Windows 8+
+	GHW_MakeRecordOfProgress("Windows : Unzipping the file "+ZipFileName+" using Windows 8+ method. " )	
+	success = GHW_unzipArchive(strToDesktop+ZipFileName, strToDesktop)
+	if(success<0.5)		//0 means code failed. 
+		GHW_MakeRecordOfProgress("Windows : FAILED Unzipping the file "+ZipFileName+" using Windows 8+ method. " )	
+		Abort "FAILED Unzipping the file "+ZipFileName+" using Windows 8+ method."
 	endif
+	//	else
+	//		//create the command file on the desktop, this is Zipjs.bat per 
+	//		//from <a href="https://github.com/npocmaka/batch.scripts/blob/master/hybrids/jscript/zipjs.bat" title="https://github.com/npocmaka/batch.scripts/blob/master/hybrids/jscript/zipjs.bat" rel="nofollow">https://github.com/npocmaka/batch.scripts/blob/master/hybrids/jscript/zi...</a>	
+	//		DoWindow zipjsbat
+	//		if(V_Flag==0)
+	//			GHW_CreateZipjsbat()	
+	//		endif
+	//		SaveNotebook/O/P=Desktop zipjsbat as "zipjs.bat"
+	//	   sleep/s 5  //wait to flush buffer so the file actually exists... 
+	//		DoWindow/K zipjsbat
+	//		//created the zipjs.bat command file which will unzip the file for us, note must kill the internal Notebook
+	//		//or Igor will held the file and Windows will throw errors
+	//		//now create cmd in line with
+	//		//             zipjs.bat unzip -source C:\myDir\myZip.zip -destination C:\MyDir -keep no -force no
+	//		// the destination folder is created by the script. 
+	//		// -keep yes will keep the content of the zip file, -force yes will overwrite the tempfolder for the data if exists
+	//		// be careful, -force yes will wipe out the destination, if exists, so make sure the data are directed to non-existing folder.
+	//		string cmd = strToDesktop+"zipjs.bat unzip -source "
+	//		cmd +=strToDesktop+stringFromList(ItemsInList(ZipFileName,":")-1, ZipFileName,":")+" -destination "
+	//		cmd +=strToTemp+"IgorCode -keep yes -force yes"
+	//		ExecuteScriptText cmd
+	//	   sleep/s 5  //wait to flush buffer so the file actually exists... 
+	//		//delete the batch file to clean up...
+	//		DeleteFile /P=Desktop /Z  "zipjs.bat"
+	//		if(deleteSource)
+	//			DeleteFile /P=Desktop /Z  ZipFileName		
+	//		endif
+	//		GHW_MakeRecordOfProgress("Windows : Unzipped file "+ZipFileName+" to temp folder")
+	//		//now the folder IgorCode is in the Desktop/ZipFileTempFldr
+	//		//and we need it in Desktop... 
+	//		//NewPath /C /O/Q/Z tempForIgorCode, strToDesktop+"IgorCode"
+	//		cmd ="Xcopy  "+strToTemp+"IgorCode\\"+UnzippedFolderName+"\\*    "+strToDesktop+UnzippedFolderName+"\\ /s /y"
+	//		//cmd =strToDesktop+"moveData.bat "+strToDesktop+"IgorCode\\IgorCode\\    "+strToDesktop+"IgorCode"
+	//		ExecuteScriptText cmd
+	//		GHW_MakeRecordOfProgress("Windows : Copied unzipped file "+ZipFileName+" from temp folder to folder : "+strToDesktop+UnzippedFolderName)
+	//		sleep/s 5		//wait for some time to get OS chance to sort things out...
+	//		//check that a file exists so we know the zip worked, and if not, let user unzip manually...
+	//	endif
 
 	String TestFilePath = strToDesktop+UnzippedFolderName
 	GetFileFolderInfo /Q/Z=1 TestFilePath
@@ -3070,18 +3070,18 @@ function GHW_unzipArchive(archivePathStr, unzippedPathStr)
     newpath /C/O/Q acw_tmpPath, unzippedPathStr
     killpath /Z acw_tmpPath
 
-    if(stringmatch(StringByKey("OS", igorinfo(3))[0,2],"Win")) // Windows
+    if(stringmatch(igorinfo(2),"Windows")) // Windows
         // The following works with .Net 4.5, which is available in Windows 8 and up.
         // current versions of Windows with Powershell 5 can use the more succinct PS command 
         // 'Expand-Archive -LiteralPath C:\archive.zip -DestinationPath C:\Dest'
         //  Expand-Archive -LiteralPath C:\Archives\Invoices.Zip -DestinationPath C:\InvoicesUnzipped -Force
         //https://blog.netwrix.com/2018/11/06/using-powershell-to-create-zip-archives-and-unzip-files/
         //string strVersion=StringByKey("OSVERSION", igorinfo(3))  //this does not work, Windows 10 report 6.x
-        variable WinVersion=str2num(StringByKey("OS", igorinfo(3))[7,12])		//this extractssimply number from OS key, should be 7, 8, 10 for now. 
-        if (WinVersion<8)
-            print "unzipArchive requires Windows 8 or later"
-            return 0
-        endif
+        //variable WinVersion=str2num(StringByKey("OS", igorinfo(3))[7,12])		//this extractssimply number from OS key, should be 7, 8, 10 for now. 
+        //if (WinVersion<8)
+        //    print "unzipArchive requires Windows 8 or later"
+        //    return 0
+        //endif
         
         archivePathStr=parseFilePath(5, archivePathStr, "\\", 0, 0)
         unzippedPathStr=parseFilePath(5, unzippedPathStr, "\\", 0, 0)

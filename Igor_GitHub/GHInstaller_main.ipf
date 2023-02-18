@@ -1,7 +1,7 @@
 #pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.15
-#pragma IgorVersion = 8.03
+#pragma version = 1.16
+#pragma IgorVersion = 8.04
 
 
 
@@ -13,6 +13,7 @@ Strconstant ksNameOfConfFile ="IgorInstallerConfig.xml"
 strconstant strConstRecordwwwAddress="https://usaxs.xray.aps.anl.gov/staff/jan-ilavsky/IrenaNikaRecords/installrecord.php?"
 Strconstant NameOfInstallMessageFile ="InstallMessage.ifn"
 
+//1.16 changed for IP9 to use internal unzip routine. Both Mac and Windows now. 
 //1.14 and 1.15 fixing unzipping for Windows. 
 //1.13 fix issue with Github renaming folders... 
 //1.12 fix issue with Giithub chanign location of zip files. 		string InternalDataName = "SAXS_IgorCode"

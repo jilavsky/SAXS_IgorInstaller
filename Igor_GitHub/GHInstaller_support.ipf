@@ -1,7 +1,8 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.15
+#pragma version = 1.16
 
+//1.16 changed for IP9 to use internal unzip routine. Both Mac and Windows now. 
 //1.15 changed for IP9 to use internal unzip routine. Windows for now. 
 //1.14 fixes issue with WIndows recognition. SHould unzip reaslnable way on WIndows now. 
 //1.12 fix issue with Giithub chanign location of zip files. 		string InternalDataName = "SAXS_IgorCode"
@@ -1549,38 +1550,48 @@ Static Function GHW_UnZipOnMac(zipFile,DestFolder,[deleteZip,overWrite,printIt])
 	DestFolder = S_Path
 	printIt = StringMatch(S_Path,DestFolder) ? printIt : 1
 
-	// get POSIX versions of paths for the shell script
-	String zipFilePOSIX = ParseFilePath(5,zipFile,"/",0,0)
-	String DestFolderPOSIX = ParseFilePath(5,DestFolder,"/",0,0)
+  	 if(IgorVersion()>8.99)		//IP9
+#if(IgorVersion()>8.99) 	 
+  	 	string source = ParseFilePath(5, zipFile, ":", 0, 0)
+  	 	string target = removeEnding(ParseFilePath(5, DestFolder, ":", 0, 0),":")
+  	 	UnzipFile /O=1 /Z=1 source,target 
+  	 	return v_flag
+#endif
+  	 else  
 
-	// create the shell script and execute it
-	String cmd, switches=SelectString(overWrite,""," -o")
-	sprintf cmd, "do shell script \"unzip %s \\\"%s\\\" -d \\\"%s\\\"\"", switches, zipFilePOSIX,DestFolderPOSIX
-	ExecuteScriptText/Z/UNQ cmd						//returns something only on error
-	if (V_flag)
-		sprintf str, "\r  ERROR -unzipping,  V_flag =",V_flag
-		GHW_MakeRecordOfProgress(str)
-		sprintf str, "cmd = ",ReplaceString("\n",cmd,"\r")
-		GHW_MakeRecordOfProgress(str)
-		sprintf str, "\r  S_value =",ReplaceString("\n",S_value,"\r")
-		GHW_MakeRecordOfProgress(str)
-		DoAlert /T="Error, Instructions how to fix it : " 0, "Automatic unzip of distribution zip file : "+zipFile+" on Desktop failed. This installation will now abort. Unzip the file to Desktop manually. Restart and install from (the just created) local folder." 
-		DoAlert /T="And now - help me!" 0, "I am unable to reproduce this bug. Please send me, ilavsky@aps.anl.gov, the InstallRecord.log file from the desktop. There should be error message there which may help." 
-		return V_flag									// all done, to not consider deleting the zip file
-	elseif (printIt)
-		sprintf str, "unzipping \"%s\"  -->  \"%s\"\r", zipFilePOSIX, DestFolderPOSIX
-		GHW_MakeRecordOfProgress(str)
-	endif
-
-	// optionally delete the zip file if requested
-	if (deleteZip)
-		DeleteFile/M="Delete the zip file"/Z zipFile
-		if (V_flag==0 && printIt)
-			sprintf str, "Macintosh : Deleted:  \"%s\"\r", zipFile
+		// get POSIX versions of paths for the shell script
+		String zipFilePOSIX = ParseFilePath(5,zipFile,"/",0,0)
+		String DestFolderPOSIX = ParseFilePath(5,DestFolder,"/",0,0)
+	
+		// create the shell script and execute it
+		String cmd, switches=SelectString(overWrite,""," -o")
+		sprintf cmd, "do shell script \"unzip %s \\\"%s\\\" -d \\\"%s\\\"\"", switches, zipFilePOSIX,DestFolderPOSIX
+		ExecuteScriptText/Z/UNQ cmd						//returns something only on error
+		if (V_flag)
+			sprintf str, "\r  ERROR -unzipping,  V_flag =",V_flag
+			GHW_MakeRecordOfProgress(str)
+			sprintf str, "cmd = ",ReplaceString("\n",cmd,"\r")
+			GHW_MakeRecordOfProgress(str)
+			sprintf str, "\r  S_value =",ReplaceString("\n",S_value,"\r")
+			GHW_MakeRecordOfProgress(str)
+			DoAlert /T="Error, Instructions how to fix it : " 0, "Automatic unzip of distribution zip file : "+zipFile+" on Desktop failed. This installation will now abort. Unzip the file to Desktop manually. Restart and install from (the just created) local folder." 
+			DoAlert /T="And now - help me!" 0, "I am unable to reproduce this bug. Please send me, ilavsky@aps.anl.gov, the InstallRecord.log file from the desktop. There should be error message there which may help." 
+			return V_flag									// all done, to not consider deleting the zip file
+		elseif (printIt)
+			sprintf str, "unzipping \"%s\"  -->  \"%s\"\r", zipFilePOSIX, DestFolderPOSIX
 			GHW_MakeRecordOfProgress(str)
 		endif
+	
+		// optionally delete the zip file if requested
+		if (deleteZip)
+			DeleteFile/M="Delete the zip file"/Z zipFile
+			if (V_flag==0 && printIt)
+				sprintf str, "Macintosh : Deleted:  \"%s\"\r", zipFile
+				GHW_MakeRecordOfProgress(str)
+			endif
+		endif
+		return V_flag
 	endif
-	return V_flag
 End
 //**************************************************************************************************************************************
 //**************************************************************************************************************************************

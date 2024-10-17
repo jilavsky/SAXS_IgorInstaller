@@ -1,7 +1,7 @@
 #pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.16
-#pragma IgorVersion = 8.04
+#pragma version = 1.17
+#pragma IgorVersion = 8.03
 
 
 
@@ -13,10 +13,11 @@ Strconstant ksNameOfConfFile ="IgorInstallerConfig.xml"
 strconstant strConstRecordwwwAddress="https://usaxs.xray.aps.anl.gov/staff/jan-ilavsky/IrenaNikaRecords/installrecord.php?"
 Strconstant NameOfInstallMessageFile ="InstallMessage.ifn"
 
-//1.16 changed for IP9 to use internal unzip routine. Both Mac and Windows now. 
+//1.17 try to fix timeout = read problem for some slow network drive home folders on Windows
+//1.16 minor fix
 //1.14 and 1.15 fixing unzipping for Windows. 
 //1.13 fix issue with Github renaming folders... 
-//1.12 fix issue with Giithub chanign location of zip files. 		string InternalDataName = "SAXS_IgorCode"
+//1.12 fix issue with Giithub chaning location of zip files. 		string InternalDataName = "SAXS_IgorCode"
 //1.11 critical upgrade, fix for bug in code which relies on bug in Igor behavior which will be fixed in Igor 8.05 and 9
 //1.10 adds ability to delete folders on desktop
 //1.09 adds better unzip for Windows 8 and 10. 
@@ -45,8 +46,8 @@ end
 //**************************************************************** 
 //**************************************************************** 
 Function GHW_Start()
-	if (str2num(stringByKey("IGORVERS",IgorInfo(0)))<7.00)
-			DoAlert /T="Important message :"  0, "This installer will work ONLY with Igor 7.00 or higher. Please, update your Igor before running this installer!"  
+	if (str2num(stringByKey("IGORVERS",IgorInfo(0)))<8.04)
+			DoAlert /T="Important message :"  0, "This installer will work ONLY with Igor 8.05 or higher. Please, update your Igor before running this installer!"  
 			BrowseURL "http://www.wavemetrics.com/support/versions.htm"
 	else
 		DoWIndow GH_MainPanel
@@ -123,7 +124,7 @@ Function GHW_CreateMainpanel()
 	Button SignupIrena,pos={390,260},size={200,18},proc=GHW_ButtonProc,title="Sign up for Irena mailing list"
 	Button SignUpNika,pos={390,290},size={200,18},proc=GHW_ButtonProc,title="Sign up for Nika mailing list"
 //
-	DrawText 5,320,"Version 1.13 of Github Installer, JIL."
+	DrawText 5,320,"Version 1.17 of Github Installer, JIL."
 	DrawText 5,335,"Please, check the web site for latest version before using." 
 end
 //**************************************************************** 

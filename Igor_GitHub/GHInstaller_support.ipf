@@ -1,8 +1,8 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma version = 1.16
+#pragma version = 1.17
 
-//1.16 changed for IP9 to use internal unzip routine. Both Mac and Windows now. 
+//1.17 added retry on fail to copy files
 //1.15 changed for IP9 to use internal unzip routine. Windows for now. 
 //1.14 fixes issue with WIndows recognition. SHould unzip reaslnable way on WIndows now. 
 //1.12 fix issue with Giithub chanign location of zip files. 		string InternalDataName = "SAXS_IgorCode"
@@ -1432,6 +1432,7 @@ Function GHW_Install()
 			GUIReportActivityForUser = "Unzipping "+InternalDataName+".zip file." 
 			GHW_MakeRecordOfProgress("Windows : Unzipping the file "+InternalDataName+".zip file. " )	
 			GHW_UnzipFileOnDesktopWindows(InternalDataName+".zip", InternalDataName, 0)
+			sleep/S 10 //give OS time to flush files from cache, if user home folder is in Cloud drive. Not obvious what value is really needed...   
 		else
 			//unzip on Mac using script. 
 			GUIReportActivityForUser = "Unzipping "+InternalDataName+".zip file." 
@@ -2856,12 +2857,22 @@ Function GHW_CopyOneFileFromDistribution(PathToLocalData, PackgListFilePaths, Fi
 		if(V_isFile)				//ipf, ihf, dll,... simply a file
 			CopyFile /O/P=sourceFileFolderPath /Z  FileToCopy as replaceString("::",IgorUserFilePathStr+FileToCopy,":")
 			if(V_flag)
-				GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Failed to copy "+FileToCopy, abortProgress=1)
+				GHW_MakeRecordOfProgress( "Retry copying file in: "+GetRTStackInfo(3)+" Could not copy file on first attempt, trying in 10 seconds second time, file: "+FileToCopy)
+				sleep/S 10
+				CopyFile /O/P=sourceFileFolderPath /Z  FileToCopy as replaceString("::",IgorUserFilePathStr+FileToCopy,":")
+				if(V_flag)
+					GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Failed to copy "+FileToCopy, abortProgress=1)
+				endif
 			endif
 		elseif(V_isFolder)	//xops on Mac are folders
 			CopyFolder /O /P=sourceFileFolderPath/Z  FileToCopy as replaceString("::",IgorUserFilePathStr+FileToCopy,":")
 			if(V_flag)
-				GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Failed to copy "+FileToCopy, abortProgress=1)
+				GHW_MakeRecordOfProgress( "Retry copying file in: "+GetRTStackInfo(3)+" Could not copy file on first attempt, trying in 10 seconds second time, file: "+FileToCopy)
+				sleep/S 10
+				CopyFolder /O /P=sourceFileFolderPath/Z  FileToCopy as replaceString("::",IgorUserFilePathStr+FileToCopy,":")
+				if(V_flag)
+					GHW_MakeRecordOfProgress( "Abort in : "+GetRTStackInfo(3)+"Failed to copy "+FileToCopy, abortProgress=1)
+				endif	
 			endif	
 		endif
 		//note, this cannot handle links, separate code needed for making links. 

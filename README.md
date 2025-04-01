@@ -3,7 +3,7 @@ Installer for SAXS_IgorCode
 *****************************
 Installer for SAXS software written by Jan Ilavsky. Current version is 1.17: 
 
-https://github.com/jilavsky/SAXS_IgorInstaller/blob/master/Igor_GitHub/GHInstaller_IrenaNika_v1.17.pxp?raw=true , if you have older version, please, udpate. Older versions fail on Igor 9, version 1.14 or higher is required. 
+https://github.com/jilavsky/SAXS_IgorInstaller/raw/refs/heads/master/Igor_GitHub/GHInstaller_IrenaNika_v1.17.pxp , if you have older version, please, udpate. Older versions fail on Igor 9, version 1.14 or higher is required. 
 
 For instructions how to install SAXS_IgorCode = Irena, Nika, and Indra packages using these installers, check on-line manuals: http://saxs-igorcodedocs.readthedocs.io/ or Youtube channel https://www.youtube.com/channel/UCDTzjGr3mAbRi3O4DJG7xHA
 
